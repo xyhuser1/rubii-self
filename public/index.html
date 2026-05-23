@@ -236,7 +236,7 @@ function CC(){if(!CID||!confirm('清空对话？'))return;var sid=getCurrentSess
 function EX(){if(CID){var sid=getCurrentSessionId();window.open('/api/characters/'+CID+'/chat/export?sessionId='+sid,'_blank')}}
 function BW(i){M=M.slice(0,i+1);RR();var sid=getCurrentSessionId();API('POST','/api/characters/'+CID+'/chat/clear?sessionId='+sid).catch(function(){});T('已回溯')}
 function RW(i){if(i!==undefined)M=M.slice(0,i+1);else if(M[M.length-1].role==="assistant")M.pop();else{T("无法重写");return}RR();var last=M[M.length-1];if(last&&last.role==="user"){$("IN").value=last.content;SD()}else{T("无法重写")}}
-function AD(){if(!CID||M.length<2)return;var last=M[M.length-1];if(last.role==='assistant'){M.pop();$('IN').value='[继续] 请接着上一段继续写，保持同样的风格和视角，不要重新开始。';SD()}else{$('IN').value='[继续] 请接着当前剧情往下写，保持连贯。';SD()}}
+function AD(){if(!CID||M.length<2)return;$('IN').value='[继续] 接着现在的情节继续往后写。';SD()}
 
 function ED(id){var ch=null;if(id)for(var i=0;i<C.length;i++){if(C[i].id===id){ch=C[i];break}}
   var sel=ch?ch.avatar:'🤖';var ap='<div class="ap">';
