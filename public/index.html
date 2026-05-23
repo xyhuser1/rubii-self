@@ -184,7 +184,7 @@ function renderGrid(l){
     var av=ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'">';
     var star=ch.fav?'★':'☆';
     h+='<div class="card"><button class="fav-btn" onclick="event.stopPropagation();toggleFav(\''+ch.id+'\')" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:20px;cursor:pointer;color:'+(ch.fav?'#e8b84b':'#c0b6b2')+';z-index:2;line-height:1">'+star+'</button><div onclick="OC(\''+ch.id+'\')"><div class="av">'+av+'</div><div class="nm" style="padding:6px 12px 0">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div></div><div class="ac"><button class="btn" onclick="event.stopPropagation();ED(\''+ch.id+'\')">✎</button><button class="btn" onclick="event.stopPropagation();DL(\''+ch.id+'\')">✕</button></div></div>';}
-  h+='</div><button class="btn-p" onclick="ED()">+ 创建角色</button>';c.innerHTML=h
+  h+='</div><div style="padding:0 16px 24px;display:flex;flex-direction:column;gap:8px"><button class="btn-p" onclick="ED()">+ 创建角色</button><div style="display:flex;gap:8px"><button class="btn" onclick="QC()" style="flex:1;padding:12px;background:rgba(255,255,255,.06);border:none;color:#c0b6b2;border-radius:14px;font-size:13px;cursor:pointer">⚡ 快速创建</button><button class="btn" onclick="IMP()" style="flex:1;padding:12px;background:rgba(255,255,255,.06);border:none;color:#c0b6b2;border-radius:14px;font-size:13px;cursor:pointer">📥 导入角色卡</button></div></div>';c.innerHTML=h
 }
 function LH(){API('GET','/api/characters').then(function(l){C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)}).catch(function(){})}
 
@@ -273,6 +273,24 @@ function SV(){var k=$('SK').value.trim();if(k)K=k;var u=$('SU').value.trim();if(
 
 document.addEventListener('keydown',function(e){if(e.target&&e.target.id=='IN'&&e.key=='Enter'&&!e.shiftKey){e.preventDefault();SD()}});
 function LO(){localStorage.removeItem('rubii_token');localStorage.removeItem('rubii_user');showLogin()}
+
+/* ── 导入角色卡 ── */
+function IMP(){var o=document.createElement('div');o.className='dialog-overlay';o.style.alignItems='flex-start';o.style.paddingTop='40px';
+o.innerHTML='<div class="dialog-box" style="width:350px;max-width:92%;"><h3>📥 导入角色卡</h3><p style="font-size:13px;margin-bottom:12px;color:#9a8f8a">支持 SillyTavern V2 / Chub.ai 格式</p><div class="fg"><label>选择 .json 文件</label><input type="file" id="IMP-FILE" accept=".json" style="font-size:13px;padding:8px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);border-radius:8px;width:100%;"></div><div class="fg"><label>或粘贴 JSON</label><textarea id="IMP-JSON" rows="6" placeholder='{"spec":"chara_card_v2","data":{"name":"..."}}' style="width:100%;font-size:12px;font-family:monospace;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:8px"></textarea></div><div class="dialog-actions" style="display:flex;gap:8px;margin-top:12px"><button class="btn" onclick="this.closest(\'.dialog-overlay\').remove()" style="flex:1;padding:10px">取消</button><button class="btn-p" onclick="doImport()" style="flex:2;padding:10px">导入</button></div></div>';
+document.body.appendChild(o)}
+function doImport(){var f=document.getElementById('IMP-FILE'),t=document.getElementById('IMP-JSON');var json=t.value.trim();if(f.files.length>0){var r=new FileReader();r.onload=function(e){try{parseAndImport(e.target.result)}catch(e){T('导入失败: '+e.message)}};r.readAsText(f.files[0]);return}if(!json){T('请选择文件或粘贴JSON');return}try{parseAndImport(json)}catch(e){T('导入失败: '+e.message)}}
+function parseAndImport(str){var card=JSON.parse(str);var data;if(card.spec==='chara_card_v2'&&card.data){data=card.data}else if(card.name){data=card}else{throw new Error('无法识别的格式')}if(!data.name)throw new Error('缺少角色名');var sp=data.system_prompt||data.personality||'';if(data.description)sp=(sp?data.description+'\n'+sp:data.description);if(data.scenario)sp+='\n场景: '+data.scenario;if(data.mes_example)sp+='\n对话示例:\n'+data.mes_example;if(data.post_history_instructions)sp+='\n'+data.post_history_instructions;var av='🤖';if(data.avatar)av=data.avatar;var gr=data.first_mes||data.greeting||'你好，我是'+data.name;API('POST','/api/characters',{name:data.name,avatar:av,description:data.description||'',systemPrompt:sp.trim(),greeting:gr}).then(function(ch){T('✅ 已导入: '+ch.name);document.querySelector('.dialog-overlay')?.remove();HOME()}).catch(function(e){T('导入失败: '+e.message)})}
+
+/* ── AI辅助创建 ── */
+function QC(){var o=document.createElement('div');o.className='dialog-overlay';o.style.alignItems='flex-start';o.style.paddingTop='60px';
+o.innerHTML='<div class="dialog-box" style="width:350px;max-width:92%;"><h3>⚡ 快速创建角色</h3><p style="font-size:13px;margin-bottom:12px;color:#9a8f8a">简单描述你想要的角色</p><div class="fg"><label>角色名</label><input id="QC-NAME" placeholder="如：苏晚晴" style="width:100%;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:14px;outline:none"></div><div class="fg"><label>一句话描述</label><textarea id="QC-DESC" rows="3" placeholder="如：高冷的女律师，表面强势内心柔软，喜欢猫" style="width:100%;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:14px;outline:none;font-family:inherit"></textarea></div><div class="dialog-actions" style="display:flex;gap:8px;margin-top:12px"><button class="btn" onclick="this.closest(\'.dialog-overlay\').remove()" style="flex:1;padding:10px">取消</button><button class="btn-p" onclick="doQC()" style="flex:2;padding:10px">创建角色</button></div></div>';
+document.body.appendChild(o);setTimeout(function(){document.getElementById('QC-NAME')?.focus()},100)}
+function doQC(){var n=document.getElementById('QC-NAME')?.value.trim();var d=document.getElementById('QC-DESC')?.value.trim();if(!n||!d){T('请填写角色名和描述');return}
+  // 构建角色
+  var sp='你是'+n+'。\n\n【角色设定】\n'+d+'\n\n【性格特点】\n根据设定自然呈现';
+  var gr=n+'看了你一眼，「你好，我是'+n+'。」\n\n她的眼神里带着一丝好奇。';
+  var av=AV[Math.floor(Math.random()*AV.length)];
+  API('POST','/api/characters',{name:n,avatar:av,description:d,systemPrompt:sp.trim(),greeting:gr}).then(function(ch){T('✅ 已创建: '+ch.name);document.querySelector('.dialog-overlay')?.remove();HOME()}).catch(function(e){T('创建失败: '+e.message)})}
 </script>
 </body>
 </html>
