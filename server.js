@@ -236,6 +236,10 @@ app.post('/api/register', (req, res) => {
   saveUsers(users);
   ensureUserDir(username);
   const token = crypto.randomBytes(32).toString('hex');
+  // 清除该用户的旧 token
+  for (const [t, d] of Object.entries(authTokens)) {
+    if (d.username === username) delete authTokens[t];
+  }
   authTokens[token] = { username, createdAt: Date.now() };
   res.json({ token, username });
 });
@@ -249,6 +253,10 @@ app.post('/api/login', (req, res) => {
   const user = users[username];
   if (!user || user.passwordHash !== hashPassword(password)) {
     return res.status(401).json({ error: '用户名或密码错误' });
+  }
+  // 清除该用户的旧 token（同一账号不能同时多地登录）
+  for (const [t, d] of Object.entries(authTokens)) {
+    if (d.username === username) delete authTokens[t];
   }
   const token = crypto.randomBytes(32).toString('hex');
   authTokens[token] = { username, createdAt: Date.now() };
