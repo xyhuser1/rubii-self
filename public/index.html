@@ -152,18 +152,23 @@ function SH(){
     })
   }).catch(function(){})
 }
-function toggleFav(id,starEl){
-  for(var i=0;i<C.length;i++){if(C[i].id===id){C[i].fav=!C[i].fav;API('PUT','/api/characters/'+id,{fav:C[i].fav});break}}
-  LH()
+function toggleFav(id){
+  for(var i=0;i<C.length;i++){if(C[i].id===id){C[i].fav=!C[i].fav;break}}
+  API('PUT','/api/characters/'+id,{fav:C[i].fav?true:false});
+  // 本地刷新，不用等API
+  var l=C.slice();if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)
 }
-function LH(){API('GET','/api/characters').then(function(l){C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});var c=$('HM');
+function renderGrid(l){
+  var c=$('HM');if(!c)return;
   if(!l.length){c.innerHTML=_showFav?'<div class="emp"><h3>还没有收藏</h3><p>点卡片上的星标收藏角色</p></div>':'<div class="emp"><h3>还没有角色</h3><p>创建角色开始聊天</p><button class="btn-p" onclick="ED()">+ 创建角色</button></div>';return}
   var h='<div class="grid">';
   for(var i=0;i<l.length;i++){var ch=l[i];
     var av=ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'">';
-    var star=ch.fav?'★':'☆';var starCls=ch.fav?'':'off';
-    h+='<div class="card"><button class="fav-btn '+starCls+'" onclick="event.stopPropagation();toggleFav(\''+ch.id+'\',this)">'+star+'</button><div onclick="OC(\''+ch.id+'\')"><div class="av">'+av+'</div><div class="nm" style="padding:6px 12px 0">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div></div><div class="ac"><button class="btn" onclick="event.stopPropagation();ED(\''+ch.id+'\')">✎</button><button class="btn" onclick="event.stopPropagation();DL(\''+ch.id+'\')">✕</button></div></div>';}
-  h+='</div><button class="btn-p" onclick="ED()">+ 创建角色</button>';c.innerHTML=h;}).catch(function(){})}
+    var star=ch.fav?'★':'☆';
+    h+='<div class="card"><button class="fav-btn" onclick="event.stopPropagation();toggleFav(\''+ch.id+'\')" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:20px;cursor:pointer;color:'+(ch.fav?'#e8b84b':'#c0b6b2')+';z-index:2;line-height:1">'+star+'</button><div onclick="OC(\''+ch.id+'\')"><div class="av">'+av+'</div><div class="nm" style="padding:6px 12px 0">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div></div><div class="ac"><button class="btn" onclick="event.stopPropagation();ED(\''+ch.id+'\')">✎</button><button class="btn" onclick="event.stopPropagation();DL(\''+ch.id+'\')">✕</button></div></div>';}
+  h+='</div><button class="btn-p" onclick="ED()">+ 创建角色</button>';c.innerHTML=h
+}
+function LH(){API('GET','/api/characters').then(function(l){C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)}).catch(function(){})}
 
 function getCurrentSessionId(){var k='cs_'+CID;var v=localStorage.getItem(k);return v||'default'}
 function setCurrentSessionId(sid){localStorage.setItem('cs_'+CID,sid)}
