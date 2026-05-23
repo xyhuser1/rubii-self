@@ -9,6 +9,7 @@
   "model": "deepseek-chat",
   "temperature": 0.8,
   "createdAt": 1779508593944,
-  "updatedAt": 1779525777268,
-  "fav": true
+  "updatedAt": 1779531771505,
+  "fav": true,
+  "userPersona": "我是谢辞"
 }
