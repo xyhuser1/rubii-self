@@ -89,7 +89,17 @@ var AV='🤖😺🦊🐰🐻🐲🦋🌸👾🎭🧙🧝🦸🧛👻🤠💃🎸
 function $(i){return document.getElementById(i)}
 function T(m){var e=document.querySelector('.toast');if(e)e.remove();e=document.createElement('div');e.className='toast';e.textContent=m;document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}
 function E(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
-function API(m,u,b){var o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);return fetch(u,o).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d})})}
+/* ── 登录 ── */
+function getToken(){return localStorage.getItem('rubii_token')||''}
+function API(m,u,b){var o={method:m,headers:{'Content-Type':'application/json','x-auth-token':getToken()}};if(b)o.body=JSON.stringify(b);return fetch(u,o).then(function(r){return r.json().then(function(d){if(r.status==401){showLogin();throw new Error('请先登录')}if(!r.ok)throw new Error(d.error);return d})})}
+function showLogin(){
+  $('app').innerHTML='<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:20px"><div style="background:#1e1e26;border-radius:16px;padding:30px;width:280px;text-align:center"><h1 style="font-size:24px;margin-bottom:4px">Rubii Self</h1><p style="color:#9a8f8a;font-size:13px;margin-bottom:20px">输入密码登录</p><input id="login-pw" type="password" placeholder="密码" style="width:100%;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:14px;outline:none;margin-bottom:12px"><button onclick="doLogin()" style="width:100%;padding:12px;background:#d4c5c0;color:#2a1f1c;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">登录</button></div></div>';$('login-pw').focus();$('login-pw').addEventListener('keydown',function(e){if(e.key=='Enter')doLogin()})
+}
+function doLogin(){
+  var pw=$('login-pw').value.trim();if(!pw)return;
+  fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})}).then(function(r){return r.json()}).then(function(d){if(d.token){localStorage.setItem('rubii_token',d.token);initApp()}else{T('密码错误')}}).catch(function(e){T('连接失败')})
+}
+function initApp(){API('GET','/api/config').then(function(c){if(c.apiKey)K=c.apiKey;DU=c.baseUrl||DU;DM=c.model||DM;HOME()}).catch(function(){HOME()})}
 var DU='https://api.deepseek.com';var DM='deepseek-chat';
 function ga(){var u=$('SU');return u&&u.value?u.value:DU}
 function gm(){var m=$('SM');return m&&m.value?m.value:DM}
@@ -101,7 +111,7 @@ function UP(id){
   inp.onchange=function(){
     var f=inp.files[0];if(!f)return;
     var fd=new FormData();fd.append('image',f);
-    fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d}})}).then(function(resp){
+    fetch('/api/upload',{method:'POST',headers:{'x-auth-token':getToken()},body:fd}).then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d}})}).then(function(resp){
       if(resp.ok&&resp.data.url){
         var url=location.origin+resp.data.url;
         if(id=='SBG'){localStorage.setItem('cbg',url);T('✅ 背景已更新');}
@@ -111,7 +121,8 @@ function UP(id){
   };inp.click()
 }
 
-API('GET','/api/config').then(function(c){if(c.apiKey)K=c.apiKey;DU=c.baseUrl||DU;DM=c.model||DM;HOME()}).catch(function(){HOME()});
+/* ── 启动 ── */
+if(getToken())initApp();else showLogin();
 
 function HOME(){
   $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH();

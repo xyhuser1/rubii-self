@@ -7,6 +7,19 @@ const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const crypto = require('crypto');
+
+// ── 简单密码登录 ──
+const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'rubii123'; // 默认密码，可在环境变量修改
+let authTokens = {};
+
+// 清理过期 token（每小时执行一次）
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of Object.entries(authTokens)) {
+    if (now - data.createdAt > 86400000) delete authTokens[token]; // 24小时过期
+  }
+}, 3600000);
 
 // ── 数据目录 ──
 const DATA_DIR = path.join(__dirname, 'data');
@@ -104,7 +117,29 @@ app.use((req, res, next) => {
   next();
 });
 
-// 静态文件（禁止缓存）
+// ── 登录 API ──
+app.post('/api/login', (req, res) => {
+  const { password } = req.body;
+  if (password === LOGIN_PASSWORD) {
+    const token = crypto.randomBytes(32).toString('hex');
+    authTokens[token] = { createdAt: Date.now() };
+    return res.json({ token });
+  }
+  res.status(401).json({ error: '密码错误' });
+});
+
+// ── API 认证中间件 ──
+app.use('/api', (req, res, next) => {
+  if (req.path === '/login') return next();
+  const token = req.headers['x-auth-token'];
+  if (token && authTokens[token]) {
+    authTokens[token].createdAt = Date.now();
+    return next();
+  }
+  res.status(401).json({ error: '请先登录' });
+});
+
+// ── 静态文件（禁止缓存）
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath);
