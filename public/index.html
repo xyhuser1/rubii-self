@@ -23,7 +23,7 @@ body{font-family:-apple-system,'PingFang SC','Noto Sans SC',sans-serif;backgroun
 .emp p{font-size:13px;line-height:1.6}
 /* ── 卡牌式角色卡片 ── */
 .grid{display:grid;grid-template-columns:1fr;gap:12px;padding-bottom:16px;max-width:380px;margin:0 auto}@media(min-width:450px){.grid{grid-template-columns:1fr 1fr;max-width:400px}}
-.card{display:flex;flex-direction:column;background:#f5f2ee;border:none;border-radius:14px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.2);transition:all .15s}
+.card{display:flex;flex-direction:column;background:#f5f2ee;border:none;border-radius:14px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.2);transition:all .15s;position:relative}
 .card:active{transform:scale(.96);opacity:.9}
 .card{position:relative}.card .fav-btn{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.25);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;transition:all .12s;color:#ffd43b;line-height:1}.card .fav-btn:active{transform:scale(.85)}.card .fav-btn.off{color:rgba(255,255,255,.5)}.card .av{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:42px;flex-shrink:0}
 .card .av img{width:100%;height:100%;object-fit:contain;display:block}
