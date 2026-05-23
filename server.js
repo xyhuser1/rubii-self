@@ -759,13 +759,8 @@ app.post('/api/upload', function(req, res, next) {
   });
 });
 
-// ── 上传文件静态服务 ──
-app.use('/uploads', (req, res, next) => {
-  // 从token解析用户
-  const token = req.headers['x-auth-token'];
-  const username = (token && authTokens[token]) ? authTokens[token].username : 'admin';
-  express.static(userUploadsDir(username))(req, res, next);
-});
+// ── 上传文件静态服务（不需要认证，所有上传统一存到 data/uploads/）
+app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
 
 // ── SPA 兜底路由 ──
 app.get('/*', (req, res) => {
