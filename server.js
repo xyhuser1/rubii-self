@@ -759,8 +759,32 @@ app.post('/api/upload', function(req, res, next) {
   });
 });
 
-// ── 上传文件静态服务（不需要认证，所有上传统一存到 data/uploads/）
-app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
+// ── 上传文件静态服务 ──
+app.use('/uploads', (req, res, next) => {
+  const filePath = req.path.replace(/^\/uploads\//, '');
+  if (!filePath) return next();
+  
+  // 先找当前用户的目录
+  const token = req.headers['x-auth-token'];
+  let username = (token && authTokens[token]) ? authTokens[token].username : 'admin';
+  let f = path.join(USERS_DIR, username, 'uploads', filePath);
+  if (fs.existsSync(f)) return res.sendFile(f);
+  
+  // 没找到则搜索所有用户目录
+  try {
+    const dirs = fs.readdirSync(USERS_DIR).filter(d => d !== 'index.json');
+    for (const dir of dirs) {
+      f = path.join(USERS_DIR, dir, 'uploads', filePath);
+      if (fs.existsSync(f)) return res.sendFile(f);
+    }
+  } catch (e) {}
+  
+  // 最后试公共目录
+  f = path.join(DATA_DIR, 'uploads', filePath);
+  if (fs.existsSync(f)) return res.sendFile(f);
+  
+  next();
+});
 
 // ── SPA 兜底路由 ──
 app.get('/*', (req, res) => {
