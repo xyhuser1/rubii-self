@@ -130,7 +130,7 @@ app.post('/api/login', (req, res) => {
 
 // ── API 认证中间件 ──
 app.use('/api', (req, res, next) => {
-  if (req.path === '/login') return next();
+  if (req.path === '/login' || req.path === '/proxy-image' || req.path === '/upload') return next();
   const token = req.headers['x-auth-token'];
   if (token && authTokens[token]) {
     authTokens[token].createdAt = Date.now();
