@@ -130,10 +130,17 @@ if(getToken())initApp();else showLogin();
 function HOME(){
   $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SH()" id="btn-hist">📋</button><button class="btn" onclick="TF()" id="btn-fav">☆</button><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH()
 }
-var _showFav=false;
-function TF(){_showFav=!_showFav;$('#btn-fav').textContent=_showFav?'★':'☆';T(_showFav?'只看收藏':'显示全部');
-  // 本地筛选，不用等API
-  var l=C.slice();if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)
+function TF(){
+  // 像历史一样打开收藏页面
+  var fav=C.filter(function(c){return c.fav});
+  if(!fav.length){T('还没有收藏的角色');return}
+  var h='<div class="hdr"><button class="btn" onclick="HOME()">‹</button><h1>⭐ 收藏角色</h1><button class="btn" style="visibility:hidden"> </button></div><div class="main">';
+  for(var i=0;i<fav.length;i++){
+    var ch=fav[i];
+    var av=ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'" style="width:48px;height:48px;border-radius:12px;object-fit:cover">';
+    h+='<div class="card" onclick="OC(\''+ch.id+'\')" style="flex-direction:row;padding:12px 16px;align-items:center;gap:14px"><div style="flex-shrink:0;width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:24px">'+av+'</div><div style="flex:1"><div class="nm" style="font-size:16px;margin-bottom:2px">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div></div></div>';
+  }
+  $('app').innerHTML=h;
 }
 function SH(){
   API('GET','/api/characters').then(function(chars){
@@ -149,7 +156,7 @@ function SH(){
           var av=d.ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'" style="width:40px;height:40px;border-radius:10px;object-fit:cover">';
           var lm=s.lastMsg||'';
           var cid2=d.ch.id;var sid2=s.id;var cnm2=E(d.ch.name);var snm2=E(s.name);
-          h+='<div class="card" style="flex-direction:row;padding:10px 12px;align-items:center;gap:12px"><div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:20px" onclick="selectSession(\''+cid2+'\',\''+sid2+'\')">'+av+'</div><div style="flex:1;min-width:0;cursor:pointer" onclick="selectSession(\''+cid2+'\',\''+sid2+'\')"><div style="font-size:14px;font-weight:600;color:#2a1f1c;margin-bottom:2px">'+cnm2+' · '+snm2+'</div><div style="font-size:12px;color:#8a7a75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+E(lm)+'</div></div><div class="btn" onclick="event.stopPropagation();delSession(\''+cid2+'\',\''+sid2+'\')" style="font-size:14px;padding:4px 8px;color:#cc8888;cursor:pointer">✕</div></div>'});
+          h+='<div class="card" style="flex-direction:row;padding:10px 12px;align-items:center;gap:10px"><div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:20px" onclick="selectSession(\''+cid2+'\',\''+sid2+'\')">'+av+'</div><div style="flex:1;min-width:0;cursor:pointer" onclick="selectSession(\''+cid2+'\',\''+sid2+'\')"><div style="font-size:14px;font-weight:600;color:#2a1f1c;margin-bottom:2px">'+cnm2+' · '+snm2+'</div><div style="font-size:12px;color:#8a7a75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+E(lm)+'</div></div><div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#cc8888;font-size:16px" onclick="event.stopPropagation();delSession(\''+cid2+'\',\''+sid2+'\')">✕</div></div>'});
       });
       if(!hasAny)h+='<div class="emp"><h3>暂无历史</h3><p>开始聊天后这里会显示</p></div>';
       $('app').innerHTML=h;
