@@ -181,7 +181,7 @@ function renderGrid(l){
     h+='<div class="card"><button class="fav-btn" onclick="event.stopPropagation();toggleFav(\''+ch.id+'\')" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:20px;cursor:pointer;color:'+(ch.fav?'#e8b84b':'#c0b6b2')+';z-index:2;line-height:1">'+star+'</button><div onclick="OC(\''+ch.id+'\')"><div class="av">'+av+'</div><div class="nm" style="padding:6px 12px 0">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div></div><div class="ac"><button class="btn" onclick="event.stopPropagation();ED(\''+ch.id+'\')">✎</button><button class="btn" onclick="event.stopPropagation();DL(\''+ch.id+'\')">✕</button></div></div>';}
   h+='</div><button class="btn-p" onclick="ED()">+ 创建角色</button>';c.innerHTML=h
 }
-function LH(){API('GET','/api/characters').then(function(l){C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)}).catch(function(){})}
+function LH(){T('加载中...');API('GET','/api/characters').then(function(l){T('加载了'+l.length+'个角色');C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)}).catch(function(e){T('❌ '+e.message)})}
 
 function selectSession(cid,sid){OC(cid);setTimeout(function(){setCurrentSessionId(sid);LC()},100)}
 function delSession(cid,sid){if(!confirm('确定删除？'))return;fetch('/api/characters/'+cid+'/sessions/'+sid,{method:'DELETE',headers:{'x-auth-token':getToken()}}).then(function(r){return r.json()}).then(function(){SH()}).catch(function(){})}
