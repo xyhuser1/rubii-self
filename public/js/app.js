@@ -129,12 +129,12 @@ function H(t){
 
 function RR(){var c=$('MS'),e=$('EM');if(!c)return;
   if(!M.length){if(e){c.innerHTML='';c.appendChild(e);e.style.display='block'}return}
-  if(e)e.style.display='none';var n='AI',a='',cb='';for(var i=0;i<C.length;i++){if(C[i].id===CID){var ch=C[i];n=ch.name;a=ch.avatar||'';cb=ch.chatBg||'';break}}
+  if(e)e.style.display='none';var n='AI',a='',cb='',_s=[];for(var i=0;i<C.length;i++){if(C[i].id===CID){var ch=C[i];n=ch.name;a=ch.avatar||'';cb=ch.chatBg||'';_s=ch.subChars||[];break}}
   var bg=cb||localStorage.getItem('cbg')||'';
   if(bg){if(bg.startsWith('linear-gradient')){c.style.background=bg}else{c.style.backgroundImage='url('+bg+')';c.style.backgroundSize='contain';c.style.backgroundRepeat='no-repeat';c.style.backgroundPosition='center';c.style.backgroundAttachment='fixed'}}else{c.style.backgroundImage='';c.style.backgroundRepeat=''}
   var h='';for(var i=0;i<M.length;i++){var m=M[i],rw='<span class="rw" onclick="BW('+i+')">↩</span>',rw2= m.role!=='user'?'<span class="rw" onclick="RW('+i+')">✏</span>':'';
     if(m.role==='user'){h+='<div class="msg-row u-row"><div class="msg u"><div>'+E(m.content)+'</div></div><div class="uav">👤</div>'+rw+'</div>'}
-    else{h+='<div class="msg-row a-row"><div class="aav">'+avt(a,30)+'</div><div class="msg a"><div class="sn">'+E(n)+'</div><div>'+H(m.content)+'</div></div>'+rw+rw2+'</div>'}}
+    else{var _sn=n,_sa=a,_txt=m.content;var _m=_txt.match(/\[([^\]]+)\]/)||_txt.match(/【([^】]+)】/);if(_m&&_s.length){var _mn=_m[1];for(var _i=0;_i<_s.length;_i++){if(_s[_i].name===_mn){_sn=_mn;_sa=_s[_i].avatar||a;_txt=_txt.substring(_m[0].length).trim();break;}}}_sa=_sa||a;h+='<div class="msg-row a-row"><div class="aav">'+(_sa.indexOf('http')===0?'<img src="'+_sa+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">':avt(_sa,30))+'</div><div class="msg a"><div class="sn">'+E(_sn)+'</div><div>'+H(_txt)+'</div></div>'+rw+rw2+'</div>'}}
   c.innerHTML=h;c.scrollTop=c.scrollHeight}
 
 function SD(){var inp=$('IN');if(!inp)return;var msg=inp.value.trim();if(!msg||S||!CID)return;
@@ -153,7 +153,11 @@ function BW(i){M=M.slice(0,i+1);RR();var sid=getCurrentSessionId();API('POST','/
 function RW(i){if(i!==undefined)M=M.slice(0,i+1);else if(M[M.length-1].role==="assistant")M.pop();else{T("无法重写");return}RR();var last=M[M.length-1];if(last&&last.role==="user"){$("IN").value=last.content;SD()}else{T("无法重写")}}
 function AD(){if(!CID||M.length<2)return;$('IN').value='[继续] 接着现在的情节继续往后写。';SD()}
 
-function ED(id){var ch=null;if(id)for(var i=0;i<C.length;i++){if(C[i].id===id){ch=C[i];break}}
+var _SC=[];
+function addSC(){var n,el=document.getElementById('SCN');n=el?el.value.trim():'';var a,el2=document.getElementById('SCA');a=el2?el2.value.trim():'';if(!n){T('请输入角色名');return}_SC.push({name:n,avatar:a||'\uD83E\uDD16'});if(el)el.value='';if(el2)el2.value='';var e3=document.getElementById('SCL');if(e3){var h='';_SC.forEach(function(s,i){var av=s.avatar||'\uD83E\uDD16';if(av.indexOf('http')===0)av='<img src="'+av+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover">';h+='<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 6px;font-size:11px">'+av+'<span>'+E(s.name)+'</span><span onclick="rmSC('+i+')" style="cursor:pointer;color:#ef4444">x</span></div>'});e3.innerHTML=h}}
+function rmSC(i){_SC.splice(i,1);addSC()}
+function upSC(){var i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=function(){var f=i.files[0];if(!f)return;var d=new FormData();d.append('image',f);fetch('/api/upload',{method:'POST',headers:{'x-auth-token':getToken()},body:d}).then(function(r){return r.json()}).then(function(j){if(j.url){document.getElementById('SCA').value=location.origin+j.url;T('已上传')}else{T('上传失败')}}).catch(function(){T('上传失败')})};i.click()}
+function ED(id){var ch=null;if(id)for(var i=0;i<C.length;i++){if(C[i].id===id){ch=C[i];break}}_SC=(ch&&ch.subChars)?JSON.parse(JSON.stringify(ch.subChars)):[];setTimeout(function(){var e3=document.getElementById('SCL');if(e3){var h='';_SC.forEach(function(s,i){var av=s.avatar||'\uD83E\uDD16';if(av.indexOf('http')===0)av='<img src="'+av+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover">';h+='<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 6px;font-size:11px">'+av+'<span>'+E(s.name)+'</span><span onclick="rmSC('+i+')" style="cursor:pointer;color:#ef4444">x</span></div>'});e3.innerHTML=h}},100)
   var sel=ch?ch.avatar:'🤖';var ap='<div class="ap">';
   for(var i=0;i<AV.length;i++){ap+='<div class="'+(AV[i]===sel?'s':'')+'" onclick="var p=this.parentNode;p.querySelectorAll(\'div\').forEach(function(d){d.classList.remove(\'s\')});this.classList.add(\'s\')">'+AV[i]+'</div>'}
   $('app').innerHTML='<div class="hdr"><button class="btn" onclick="'+(id&&CID===id?'OC(\''+CID+'\')':'HOME()')+'">‹</button><h1>'+(id?'编辑角色':'创建角色')+'</h1><button class="btn" style="visibility:hidden"> </button></div><div class="main"><form id="EF">'+
@@ -163,12 +167,12 @@ function ED(id){var ch=null;if(id)for(var i=0;i<C.length;i++){if(C[i].id===id){c
     '<div class="fg"><label>简介</label><input id="ED2" value="'+(ch?E(ch.description||''):'')+'"></div>'+
     '<div class="fg"><label>你的身份（让AI知道你是谁）</label><input id="EUP" value="'+(ch?E(ch.userPersona||''):'')+'" placeholder="例如：你是我的贴身秘书"></div>'+
     '<div class="fg"><label>系统提示词</label><textarea id="EP" rows="4">'+(ch?E(ch.systemPrompt||''):'')+'</textarea></div>'+
-    '<div class="fg"><label>开场白</label><textarea id="EG" rows="2">'+(ch?E(ch.greeting||''):'')+'</textarea></div>'+'<div class="fg"><label>角色聊天背景</label><div style="display:flex;gap:8px"><input id="ECH" value="'+(ch&&ch.chatBg?E(ch.chatBg):'')+'" placeholder="URL或上传" style="flex:1"><button type="button" class="btn" onclick="UP(\'ECH\')" style="flex-shrink:0">📁</button></div></div>'+
+    '<div class="fg"><label>开场白</label><textarea id="EG" rows="2">'+(ch?E(ch.greeting||''):'')+'</textarea></div>'+''<div class="fg"><label>多角色</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px"><input id="SCN" placeholder="角色名" style="flex:1;min-width:60px;padding:8px;border-radius:8px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:12px;outline:none"><input id="SCA" placeholder="头像URL" style="flex:1;min-width:60px;padding:8px;border-radius:8px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:12px;outline:none"><button type="button" class="btn" onclick="addSC()" style="padding:6px 10px;font-size:11px">+</button><button type="button" class="btn" onclick="upSC()" style="padding:6px 10px;font-size:11px">📁</button></div><div id="SCL" style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0"></div></div>+<div class="fg"><label>角色聊天背景</label><div style="display:flex;gap:8px"><input id="ECH" value="'+(ch&&ch.chatBg?E(ch.chatBg):'')+'" placeholder="URL或上传" style="flex:1"><button type="button" class="btn" onclick="UP(\'ECH\')" style="flex-shrink:0">📁</button></div></div>'+
     '<button class="btn-p" type="submit">保存</button>'+(id?'<button type="button" class="btn" style="width:100%;margin-top:8px;padding:12px;border:1px solid #ef4444;color:#ef4444;border-radius:10px;background:transparent" onclick="DL(\''+id+'\')">删除角色</button>':'')+'</form></div>';
   $('EF').onsubmit=function(e){e.preventDefault();
     var av=$('EA').value.trim();
     if(!av){var s=document.querySelector('.ap .s');if(s)av=s.textContent}
-    var data={name:$('EN').value.trim(),avatar:av||'🤖',chatBg:$('ECH').value.trim()||'',description:$('ED2').value.trim(),userPersona:$('EUP').value.trim(),systemPrompt:$('EP').value.trim(),greeting:$('EG').value.trim()};
+    var data={name:$('EN').value.trim(),avatar:av||'🤖',chatBg:$('ECH').value.trim()||'',description:$('ED2').value.trim(),userPersona:$('EUP').value.trim(),systemPrompt:$('EP').value.trim(),greeting:$('EG').value.trim(),subChars:window._SC||[]};
     if(!data.name){T('请输入角色名');return}
     (id?API('PUT','/api/characters/'+id,data):API('POST','/api/characters',data)).then(function(){T('已保存');HOME()}).catch(function(e){T('保存失败')})}}
 
