@@ -513,7 +513,23 @@ app.get('/api/characters/:id/chat/export', (req, res) => {
 // 获取 session 列表
 app.get('/api/characters/:id/sessions', (req, res) => {
   const sessions = readSessions(req.params.id);
-  res.json(sessions);
+  // 添加最后一条消息预览
+  const enriched = sessions.map(s => {
+    const f = path.join(CHATS_DIR, req.params.id, 'sessions', s.id + '.json');
+    const data = readJSON(f);
+    let lastMsg = '';
+    if (data && data.messages) {
+      for (let i = data.messages.length - 1; i >= 0; i--) {
+        if (data.messages[i].role === 'assistant') {
+          const c = data.messages[i].content || '';
+          lastMsg = c.length > 100 ? c.slice(0, 100) + '...' : c;
+          break;
+        }
+      }
+    }
+    return { ...s, lastMsg };
+  });
+  res.json(enriched);
 });
 
 // 创建新 session

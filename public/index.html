@@ -139,7 +139,14 @@ function SH(){
     Promise.all(ps).then(function(data){
       var h='<div class="hdr"><button class="btn" onclick="HOME()">‹</button><h1>历史对话</h1><button class="btn" style="visibility:hidden"> </button></div><div class="main">';
       var hasAny=false;
-      data.forEach(function(d){if(d.sessions.length){hasAny=true;h+='<div class="name" style="font-size:14px;font-weight:600;color:#e8e0dd;padding:12px 4px 6px">'+E(d.ch.name)+'</div>';d.sessions.forEach(function(s){h+='<div class="card" style="flex-direction:row;padding:10px 14px" onclick="OC(\''+d.ch.id+'\');setTimeout(function(){setCurrentSessionId(\''+s.id+'\');LC()},100)"><div style="flex:1">'+E(s.name)+'</div><div style="color:#9a8f8a;font-size:11px">'+(s.msgCount||'0')+'条</div></div>'})}});
+      data.forEach(function(d){
+        if(!d.sessions.length)return;
+        hasAny=true;
+        d.sessions.forEach(function(s){
+          var av=d.ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'" style="width:40px;height:40px;border-radius:10px;object-fit:cover">';
+          var lm=s.lastMsg||'';
+          h+='<div class="card" style="flex-direction:row;padding:10px 12px;align-items:center;gap:12px" onclick="OC(\''+d.ch.id+'\');setTimeout(function(){setCurrentSessionId(\''+s.id+'\');LC()},100)"><div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:20px">'+av+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:#2a1f1c;margin-bottom:2px">'+E(d.ch.name)+' · '+E(s.name)+'</div><div style="font-size:12px;color:#8a7a75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+E(lm)+'</div></div><div style="color:#9a8f8a;font-size:11px;flex-shrink:0">'+(s.msgCount||'0')+'条</div></div>'});
+      });
       if(!hasAny)h+='<div class="emp"><h3>暂无历史</h3><p>开始聊天后这里会显示</p></div>';
       $('app').innerHTML=h;
     })
