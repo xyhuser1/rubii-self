@@ -83,6 +83,13 @@ body{font-family:-apple-system,'PingFang SC','Noto Sans SC',sans-serif;backgroun
 /* ── 会话选择器 ── */
 .sel-session{background:rgba(255,255,255,.06);color:#c0b6b2;border:none;border-radius:10px;padding:4px 8px;font-size:11px;cursor:pointer;outline:none;max-width:90px;flex-shrink:0}
 .sel-session option{background:#1e1e26;color:#e8e0dd}
+.dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100}
+.dialog-box{background:#1e1e26;border-radius:16px;padding:24px;width:320px;max-width:92%;color:#e8e0dd}
+.dialog-box h3{font-size:16px;margin-bottom:10px}
+.dialog-box p{font-size:13px;color:#9a8f8a;line-height:1.5;margin-bottom:14px}
+.dialog-actions{display:flex;gap:8px;margin-top:14px}
+.dialog-actions .btn-cancel{flex:1;padding:10px;background:rgba(255,255,255,.06);border:none;color:#c0b6b2;border-radius:12px;cursor:pointer}
+.dialog-actions .btn-confirm{flex:1;padding:10px;background:#d4c5c0;color:#2a1f1c;border:none;border-radius:12px;cursor:pointer;font-weight:600}
 </style>
 </head>
 <body><div id="app"></div>
@@ -286,11 +293,9 @@ function QC(){var o=document.createElement('div');o.className='dialog-overlay';o
 o.innerHTML='<div class="dialog-box" style="width:350px;max-width:92%;"><h3>⚡ 快速创建角色</h3><p style="font-size:13px;margin-bottom:12px;color:#9a8f8a">简单描述你想要的角色</p><div class="fg"><label>角色名</label><input id="QC-NAME" placeholder="如：苏晚晴" style="width:100%;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:14px;outline:none"></div><div class="fg"><label>一句话描述</label><textarea id="QC-DESC" rows="3" placeholder="如：高冷的女律师，表面强势内心柔软，喜欢猫" style="width:100%;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:14px;outline:none;font-family:inherit"></textarea></div><div class="dialog-actions" style="display:flex;gap:8px;margin-top:12px"><button class="btn" onclick="this.closest(\'.dialog-overlay\').remove()" style="flex:1;padding:10px">取消</button><button class="btn-p" onclick="doQC()" style="flex:2;padding:10px">创建角色</button></div></div>';
 document.body.appendChild(o);setTimeout(function(){document.getElementById('QC-NAME')?.focus()},100)}
 function doQC(){var n=document.getElementById('QC-NAME')?.value.trim();var d=document.getElementById('QC-DESC')?.value.trim();if(!n||!d){T('请填写角色名和描述');return}
-  // 构建角色
-  var sp='你是'+n+'。\n\n【角色设定】\n'+d+'\n\n【性格特点】\n根据设定自然呈现';
-  var gr=n+'看了你一眼，「你好，我是'+n+'。」\n\n她的眼神里带着一丝好奇。';
-  var av=AV[Math.floor(Math.random()*AV.length)];
-  API('POST','/api/characters',{name:n,avatar:av,description:d,systemPrompt:sp.trim(),greeting:gr}).then(function(ch){T('✅ 已创建: '+ch.name);document.querySelector('.dialog-overlay')?.remove();HOME()}).catch(function(e){T('创建失败: '+e.message)})}
+  T('🤖 AI正在为你创作角色...',5000);
+  var apiKey=$('SK')?.value||K||'';
+  API('POST','/api/characters/generate',{name:n,description:d,config:{apiKey:apiKey,baseUrl:DU,model:DM}}).then(function(ch){T('✅ 已创建: '+ch.name);document.querySelector('.dialog-overlay')?.remove();HOME()}).catch(function(e){T('创建失败: '+e.message)})}
 </script>
 </body>
 </html>

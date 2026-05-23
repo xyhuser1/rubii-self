@@ -329,6 +329,52 @@ app.post('/api/characters', (req, res) => {
   res.json(char);
 });
 
+// AI 生成角色
+app.post('/api/characters/generate', async (req, res) => {
+  const { name, description, config } = req.body;
+  if (!name) return res.status(400).json({ error: '角色名不能为空' });
+  if (!description) return res.status(400).json({ error: '描述不能为空' });
+  if (!config?.apiKey) return res.status(400).json({ error: '请先在设置中填写 API Key' });
+  const prompt = '你是一位角色创作专家。请根据以下信息生成一个完整的AI角色扮演角色卡。\n\n角色名：' + name + '\n一句话描述：' + description + '\n\n请生成以下内容（直接返回JSON，不要用markdown代码块）：\n{\n  \"avatar\": \"用1个最能代表角色气质的Emoji，不能是🤖\",\n  \"chatBg\": \"一段CSS渐变背景，如：linear-gradient(135deg, #667eea 0%, #764ba2 100%)\",\n  \"systemPrompt\": \"详细的系统提示词，包括角色性格、说话方式、背景故事、行为模式等，至少400字。要有深度和细节\",\n  \"greeting\": \"一段生动精彩的开场白，包含环境描写、动作神态和第一句对话，至少150字。要有画面感和氛围渲染\",\n  \"description\": \"一个简短的、吸引人的角色简介，用于列表展示，30字以内\"\n}\n\n要求：\n- 角色要立体、有深度，有复杂的内心世界和性格层次\n- 设定要新颖有创意，不要千篇一律\n- 语言要精美，像文学作品一样有质感\n- 中文输出\n- avatar必须是Emoji字符，如👑🎭🎯🌊🔥🌙🌸🍁⚔️🛡️🎪🎨📚💎🔮 等';
+  try {
+    const apiUrl = 'https://api.deepseek.com';
+    const resp = await fetch(apiUrl + '/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey },
+      body: JSON.stringify({ model: config.model || 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 1.0, max_tokens: 4096 })
+    });
+    if (!resp.ok) return res.status(502).json({ error: 'AI生成失败' });
+    const data = await resp.json();
+    const text = data.choices[0].message.content || '';
+    let gen;
+    try { gen = JSON.parse(text); }
+    catch (e) {
+      const m = text.match(/```(?:json)?([sS]*?)```/);
+      if (m) gen = JSON.parse(m[1].trim());
+      else {
+        const s = text.indexOf('{'), e = text.lastIndexOf('}');
+        if (s >= 0 && e > s) gen = JSON.parse(text.substring(s, e + 1));
+        else throw new Error('解析失败');
+      }
+    }
+    const { v4: uuidv4 } = require('uuid');
+        // 生成头像和背景
+    const diceStyles = ['adventurer', 'avataaars', 'lorelei', 'micah', 'notionists', 'personas', 'fun-emoji', 'pixel-art'];
+    const avatarSeed = encodeURIComponent(name + ' ' + description.slice(0, 30));
+    const styleIdx = (name.charCodeAt(0) + description.length) % diceStyles.length;
+    const avatarUrl = 'https://api.dicebear.com/7.x/' + diceStyles[styleIdx] + '/svg?seed=' + avatarSeed + '&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,c4a4ff&backgroundType=gradientLinear&backgroundRotation=0';
+    // 用 Picsum 生成高质量聊天背景（seed 基于角色名保持一致）
+    const picSeed = encodeURIComponent(name + ' avatar portrait character');
+    const chatBg = gen.chatBg && gen.chatBg.startsWith('linear-gradient') ? gen.chatBg : 'https://picsum.photos/seed/' + picSeed + '/800/600';
+    const ch = { id: uuidv4(), name: name, avatar: avatarUrl, chatBg: chatBg, description: gen.description || description, userPersona: '', systemPrompt: gen.systemPrompt || ('你是' + name), greeting: gen.greeting || ('你好，我是' + name), model: 'deepseek-chat', temperature: 0.8, fav: false, createdAt: Date.now(), updatedAt: Date.now() };
+    require('fs').writeFileSync(path.join(userCharsDir(req.username), ch.id + '.json'), JSON.stringify(ch, null, 2), 'utf-8');
+    res.json(ch);
+  } catch (e) {
+    console.error('[Generate]', e.message);
+    res.status(500).json({ error: '生成失败' });
+  }
+});
+
 // 更新角色
 app.put('/api/characters/:id', (req, res) => {
   const file = path.join(userCharsDir(req.username), `${req.params.id}.json`);
