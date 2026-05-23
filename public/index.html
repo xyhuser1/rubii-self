@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Rubii Self</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC','Noto Sans SC',sans-serif;background:#19191f;color:#e8e0dd;height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased}
+#app{height:100%;display:flex;flex-direction:column}
+/* ── 顶栏 ── */
+.hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#1e1e26;border-bottom:1px solid rgba(255,255,255,.04);flex-shrink:0;z-index:2}
+.hdr h1{font-size:17px;font-weight:600;flex:1;color:#e8e0dd}
+.hdr .btn{background:rgba(255,255,255,.06);border:none;color:#c0b6b2;padding:7px 14px;border-radius:16px;font-size:12px;cursor:pointer;transition:all .15s}
+.hdr .btn:active{background:rgba(255,255,255,.12)}
+.btn{background:rgba(255,255,255,.06);border:none;color:#c0b6b2;padding:7px 14px;border-radius:16px;font-size:12px;cursor:pointer;transition:all .15s}
+.btn:active{background:rgba(255,255,255,.12)}
+.btn-p{background:#d4c5c0;color:#2a1f1c;width:100%;padding:13px;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px;transition:all .15s}
+.btn-p:active{opacity:.8}
+.main{flex:1;overflow-y:auto;padding:16px;scroll-behavior:smooth}
+.emp{text-align:center;padding:50px 20px;color:#9a8f8a}
+.emp h3{font-size:18px;color:#e8e0dd;margin-bottom:6px}
+.emp p{font-size:13px;line-height:1.6}
+/* ── 卡牌式角色卡片 ── */
+.grid{display:grid;grid-template-columns:1fr;gap:12px;padding-bottom:16px}@media(min-width:420px){.grid{grid-template-columns:1fr 1fr}}
+.card{display:flex;flex-direction:column;background:#f5f2ee;border:none;border-radius:14px;cursor:pointer;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.2);transition:all .15s}
+.card:active{transform:scale(.96);opacity:.9}
+.card .av{width:100%;height:80px;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:34px;flex-shrink:0}@media(min-width:420px){.card .av{height:100px;font-size:40px}}
+.card .av img{width:100%;height:100%;object-fit:cover}
+.card .nm{font-size:15px;font-weight:600;color:#2a1f1c;margin-bottom:2px}
+.card .ds{font-size:12px;color:#8a7a75;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .ac{display:flex;gap:4px;margin-top:6px;padding:10px 12px 12px;justify-content:flex-end}
+.card .nm,.card .ds{padding:0 12px}
+.card .nm{margin-top:8px}
+.msgs{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:2px;scroll-behavior:smooth;position:relative}
+.msgs:before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.15);z-index:0;pointer-events:none}
+.msg,.msg-row{position:relative;z-index:1}
+.msg{max-width:84%;padding:9px 14px;border-radius:16px;font-size:15px;line-height:1.6;word-break:break-word;animation:msgIn .2s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.u{align-self:flex-end;background:rgba(245,242,238,.55);color:#2a1f1c;border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:rgba(232,223,217,.55);color:#2a1f1c;border-bottom-left-radius:4px}
+.msg-row{display:flex;align-items:flex-end;gap:6px;margin-bottom:6px;position:relative}
+.u-row{justify-content:flex-end}
+.a-row{justify-content:flex-start}
+.uav,.aav{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;overflow:hidden}
+.uav{background:rgba(255,255,255,.06)}
+.aav{background:#d4c5c0}
+.aav img,.uav img{width:28px;height:28px;object-fit:cover;border-radius:50%}
+.rw{font-size:10px;cursor:pointer;opacity:0;transition:opacity .15s;padding:2px 3px;color:#9a8f8a;align-self:center;user-select:none;line-height:1}
+.msg-row:hover .rw{opacity:1}
+.rw:hover{color:#e8e0dd}
+.typing{display:flex;gap:3px;padding:10px 16px;background:#e8dfd9;border-radius:16px;border-bottom-left-radius:4px;align-self:flex-start}
+.typing span{width:6px;height:6px;border-radius:50%;background:#b8aba5;animation:ty1 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes ty1{0%,60%,100%{opacity:.3;transform:scale(.8)}30%{opacity:1;transform:scale(1)}}
+.inp{display:flex;align-items:flex-end;gap:8px;padding:8px 14px 10px;background:#1e1e26;border-top:1px solid rgba(255,255,255,.04);flex-shrink:0}
+.inp textarea{flex:1;resize:none;padding:9px 14px;border-radius:20px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);max-height:80px;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s}
+.inp textarea:focus{border-color:rgba(180,167,160,.4)}
+.inp textarea::placeholder{color:#9a8f8a}
+.inp .sd{width:38px;height:38px;border-radius:50%;background:#d4c5c0;color:#2a1f1c;border:none;font-size:16px;flex-shrink:0;transition:all .15s}
+.inp .sd:active{transform:scale(.92)}
+.inp .sd:disabled{opacity:.3}
+.ar{display:flex;gap:6px;padding:3px 14px 8px;background:#1e1e26;border-top:1px solid rgba(255,255,255,.04);flex-shrink:0;flex-wrap:wrap}
+.ar .btn{font-size:11px;padding:5px 12px;border-radius:14px;background:rgba(255,255,255,.05);color:#9a8f8a;border:none}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;color:#9a8f8a;margin-bottom:5px;font-weight:500}
+.fg input,.fg textarea{width:100%;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.05);color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:14px;font-family:inherit;outline:none;transition:border-color .15s}
+.fg textarea{min-height:70px;line-height:1.5}
+.fg input:focus,.fg textarea:focus{border-color:rgba(180,167,160,.4)}
+.fg input::placeholder{color:#7a6e68}
+.ap{display:flex;gap:6px;flex-wrap:wrap}
+.ap div{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s}
+.ap div:active{transform:scale(.9)}
+.ap div.s{border-color:#b8a6a0;background:rgba(180,167,160,.15)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:12px;background:#2a2522;color:#e8e0dd;border:1px solid rgba(255,255,255,.06);font-size:13px;z-index:99;max-width:90%;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.3);animation:toastIn .2s ease}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.sn{font-size:11px;color:#9a8f8a;margin-bottom:3px;letter-spacing:.2px}
+/* ── 台词颜色高亮 ── */
+.dlg-narr{color:#e8e0dd}
+.dlg-talk{color:#c49a5a;font-weight:500}
+.dlg-think{color:#9a8f8a;font-style:italic}
+</style>
+</head>
+<body><div id="app"></div>
+<script>
+var K='',C=[],CID=null,M=[],S=false;
+var AV='🤖😺🦊🐰🐻🐲🦋🌸👾🎭🧙🧝🦸🧛👻🤠💃🎸🕵️🧚🧜🦄🐉🦅🐺🦁🐯🌙☀️⭐🌺🌻🔥⚡💎🔮⚔️🏹👑🎩🥷🗻🏯⛩️🌊💫'.split('');
+function $(i){return document.getElementById(i)}
+function T(m){var e=document.querySelector('.toast');if(e)e.remove();e=document.createElement('div');e.className='toast';e.textContent=m;document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}
+function E(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function API(m,u,b){var o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);return fetch(u,o).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d})})}
+var DU='https://api.deepseek.com';var DM='deepseek-chat';
+function ga(){var u=$('SU');return u&&u.value?u.value:DU}
+function gm(){var m=$('SM');return m&&m.value?m.value:DM}
+
+/* ── 本机图片上传 ── */
+function UP(id){
+  if(!id)id='SBG';
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=function(){
+    var f=inp.files[0];if(!f)return;
+    var fd=new FormData();fd.append('image',f);
+    fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d}})}).then(function(resp){
+      if(resp.ok&&resp.data.url){
+        var url=location.origin+resp.data.url;
+        if(id=='SBG'){localStorage.setItem('cbg',url);T('✅ 背景已更新');}
+        else{var el=$(id);if(el)el.value=url;T('✅ 上传成功');}
+      }else{T('❌ '+(resp.data.error||'上传失败'))}
+    }).catch(function(e){T('❌ '+e.message)});
+  };inp.click()
+}
+
+API('GET','/api/config').then(function(c){if(c.apiKey)K=c.apiKey;DU=c.baseUrl||DU;DM=c.model||DM;HOME()}).catch(function(){HOME()});
+
+function HOME(){
+  $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH();
+}
+function LH(){API('GET','/api/characters').then(function(l){C=l;var c=$('HM');
+  if(!l.length){c.innerHTML='<div class="emp"><h3>还没有角色</h3><p>创建角色开始聊天</p><button class="btn-p" onclick="ED()">+ 创建角色</button></div>';return}
+  var h='<div class="grid">';
+  for(var i=0;i<l.length;i++){var ch=l[i];
+    var av=ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'">';
+    h+='<div class="card" onclick="OC(\''+ch.id+'\')"><div class="av">'+av+'</div><div class="nm" style="padding:6px 12px 0">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div><div class="ac"><button class="btn" onclick="event.stopPropagation();ED(\''+ch.id+'\')">✎</button><button class="btn" onclick="event.stopPropagation();DL(\''+ch.id+'\')">✕</button></div></div>';}
+  h+='</div><button class="btn-p" onclick="ED()">+ 创建角色</button>';c.innerHTML=h;}).catch(function(){})}
+
+function OC(id){CID=id;var ch=null;for(var i=0;i<C.length;i++){if(C[i].id===id){ch=C[i];break}}
+  var g='';if(ch)g=ch.greeting||'你好，我是'+ch.name;
+  $('app').innerHTML='<div class="hdr"><button class="btn" onclick="BC()">‹</button><h1>'+(ch?E(ch.name):'Chat')+'</h1><button class="btn" onclick="ED(\''+id+'\')">✎</button></div><div class="msgs" id="MS"><div class="emp" id="EM"><h3>开始聊天</h3><p>'+E(g)+'</p></div></div><div class="ar"><button class="btn" onclick="CC()">🗑 清空</button><button class="btn" onclick="AD()">▶ 推进</button><button class="btn" onclick="EX()">📥 导出</button></div><div class="inp"><textarea id="IN" rows="1" placeholder="输入消息..." maxlength="5000"></textarea><button class="sd" id="SB" onclick="SD()">↑</button></div>';LC()}
+function LC(){API('GET','/api/characters/'+CID+'/chat').then(function(msgs){M=msgs;RR()}).catch(function(){})}
+
+function avt(a,s){if(a&&a.indexOf('http')===0)return'<img src="/api/proxy-image?url='+encodeURIComponent(a)+'" style="width:'+s+'px;height:'+s+'px;border-radius:50%;object-fit:cover">';return a||'🤖'}
+
+/* 台词高亮：给AI回复中的对话加颜色区分 */
+function H(t){
+  var s = E(t);
+  s = s.replace(/\u300c([^\u300d]+)\u300d/g,"<span class='dlg-talk'>\u300c$1\u300d</span>");
+  s = s.replace(/\u201c([^\u201d]+)\u201d/g,"<span class='dlg-talk'>\u201c$1\u201d</span>");
+  s = s.replace(/\x22([^\x22]*)\x22/g,"<span class='dlg-talk'>\x22$1\x22</span>");
+  s = s.replace(/\u300e([^\u300f]+)\u300f/g,"<span class='dlg-think'>\u300e$1\u300f</span>");
+  s = s.replace(/\uff08([^\uff09]+)\uff09/g,"<span class='dlg-narr'>\uff08$1\uff09</span>");
+  return s.replace(/\n/g,'<br>');
+}
+
+function RR(){var c=$('MS'),e=$('EM');if(!c)return;
+  if(!M.length){if(e){c.innerHTML='';c.appendChild(e);e.style.display='block'}return}
+  if(e)e.style.display='none';var n='AI',a='',cb='';for(var i=0;i<C.length;i++){if(C[i].id===CID){var ch=C[i];n=ch.name;a=ch.avatar||'';cb=ch.chatBg||'';break}}
+  var bg=cb||localStorage.getItem('cbg')||'';
+  if(bg){c.style.backgroundImage='url('+bg+')';c.style.backgroundSize='contain';c.style.backgroundRepeat='no-repeat';c.style.backgroundPosition='center';c.style.backgroundAttachment='fixed'}else{c.style.backgroundImage='';c.style.backgroundRepeat=''}
+  var h='';for(var i=0;i<M.length;i++){var m=M[i],rw='<span class="rw" onclick="BW('+i+')">↩</span>',rw2= m.role!=='user'?'<span class="rw" onclick="RW('+i+')">✏</span>':'';
+    if(m.role==='user'){h+='<div class="msg-row u-row"><div class="msg u"><div>'+E(m.content)+'</div></div><div class="uav">👤</div>'+rw+'</div>'}
+    else{h+='<div class="msg-row a-row"><div class="aav">'+avt(a,30)+'</div><div class="msg a"><div class="sn">'+E(n)+'</div><div>'+H(m.content)+'</div></div>'+rw+rw2+'</div>'}}
+  c.innerHTML=h;c.scrollTop=c.scrollHeight}
+
+function SD(){var inp=$('IN');if(!inp)return;var msg=inp.value.trim();if(!msg||S||!CID)return;
+  inp.value='';S=true;$('SB').disabled=true;M.push({role:'user',content:msg});RR();
+  var te=document.createElement('div');te.className='typing';te.innerHTML='<span></span><span></span><span></span>';$('MS').appendChild(te);
+  API('POST','/api/characters/'+CID+'/chat',{message:msg,config:{apiKey:K||'local',baseUrl:ga(),model:gm(),temperature:1.0,maxHistory:100}}).then(function(r){
+    var t2=$('MS').querySelector('.typing');if(t2)t2.remove();
+    M.push({role:'assistant',content:r.reply||''});RR();S=false;$('SB').disabled=false
+  }).catch(function(e){var t2=$('MS').querySelector('.typing');if(t2)t2.remove();
+    M.push({role:'assistant',content:'⚠ '+e.message});RR();S=false;$('SB').disabled=false})}
+function BC(){CID=null;M=[];HOME()}
+function CC(){if(!CID||!confirm('清空对话？'))return;API('POST','/api/characters/'+CID+'/chat/clear').then(function(){M=[];RR();T('已清空')}).catch(function(){})}
+function EX(){if(CID)window.open('/api/characters/'+CID+'/chat/export','_blank')}
+function BW(i){M=M.slice(0,i+1);RR();API('POST','/api/characters/'+CID+'/chat/clear').catch(function(){});T('已回溯')}
+function RW(i){if(i!==undefined)M=M.slice(0,i+1);else if(M[M.length-1].role==="assistant")M.pop();else{T("无法重写");return}RR();var last=M[M.length-1];if(last&&last.role==="user"){$("IN").value=last.content;SD()}else{T("无法重写")}}
+function AD(){if(!CID||M.length<2)return;var last=M[M.length-1];if(last.role==='assistant'){M.pop();$('IN').value='（详细描写以上情景的每一刻）';SD()}else{$('IN').value='（详细描写当前场景）';SD()}}
+
+function ED(id){var ch=null;if(id)for(var i=0;i<C.length;i++){if(C[i].id===id){ch=C[i];break}}
+  var sel=ch?ch.avatar:'🤖';var ap='<div class="ap">';
+  for(var i=0;i<AV.length;i++){ap+='<div class="'+(AV[i]===sel?'s':'')+'" onclick="var p=this.parentNode;p.querySelectorAll(\'div\').forEach(function(d){d.classList.remove(\'s\')});this.classList.add(\'s\')">'+AV[i]+'</div>'}
+  $('app').innerHTML='<div class="hdr"><button class="btn" onclick="'+(id&&CID===id?'OC(\''+CID+'\')':'HOME()')+'">‹</button><h1>'+(id?'编辑角色':'创建角色')+'</h1><button class="btn" style="visibility:hidden"> </button></div><div class="main"><form id="EF">'+
+    '<div class="fg"><label>头像</label>'+ap+'</div>'+
+    '<div class="fg"><label>头像图片</label><div style="display:flex;gap:8px"><input id="EA" value="'+(ch&&ch.avatar&&ch.avatar.indexOf('http')===0?E(ch.avatar):'')+'" placeholder="URL或上传" style="flex:1"><button type="button" class="btn" onclick="UP(\'EA\')" style="flex-shrink:0">📁</button></div></div>'+
+    '<div class="fg"><label>角色名 *</label><input id="EN" value="'+(ch?E(ch.name):'')+'" required></div>'+
+    '<div class="fg"><label>简介</label><input id="ED2" value="'+(ch?E(ch.description||''):'')+'"></div>'+
+    '<div class="fg"><label>系统提示词</label><textarea id="EP" rows="4">'+(ch?E(ch.systemPrompt||''):'')+'</textarea></div>'+
+    '<div class="fg"><label>开场白</label><textarea id="EG" rows="2">'+(ch?E(ch.greeting||''):'')+'</textarea></div>'+'<div class="fg"><label>角色聊天背景</label><div style="display:flex;gap:8px"><input id="ECH" value="'+(ch&&ch.chatBg?E(ch.chatBg):'')+'" placeholder="URL或上传" style="flex:1"><button type="button" class="btn" onclick="UP(\'ECH\')" style="flex-shrink:0">📁</button></div></div>'+
+    '<button class="btn-p" type="submit">保存</button>'+(id?'<button type="button" class="btn" style="width:100%;margin-top:8px;padding:12px;border:1px solid #ef4444;color:#ef4444;border-radius:10px;background:transparent" onclick="DL(\''+id+'\')">删除角色</button>':'')+'</form></div>';
+  $('EF').onsubmit=function(e){e.preventDefault();
+    var av=$('EA').value.trim();
+    if(!av){var s=document.querySelector('.ap .s');if(s)av=s.textContent}
+    var data={name:$('EN').value.trim(),avatar:av||'🤖',chatBg:$('ECH').value.trim()||'',description:$('ED2').value.trim(),systemPrompt:$('EP').value.trim(),greeting:$('EG').value.trim()};
+    if(!data.name){T('请输入角色名');return}
+    (id?API('PUT','/api/characters/'+id,data):API('POST','/api/characters',data)).then(function(){T('已保存');HOME()}).catch(function(e){T('保存失败')})}}
+
+function DL(id){if(!confirm('确认删除？'))return;API('DELETE','/api/characters/'+id).then(function(){if(CID===id)CID=null;HOME()}).catch(function(){})}
+
+function SET(){$('app').innerHTML='<div class="hdr"><button class="btn" onclick="HOME()">‹</button><h1>设置</h1><button class="btn" style="visibility:hidden"> </button></div><div class="main"><div style="padding:14px">'+
+  '<div class="fg"><label>API Key</label><input id="SK" type="password" placeholder="sk-..."></div>'+
+  '<div class="fg"><label>API 地址</label><input id="SU" value="'+DU+'"></div>'+
+  '<div class="fg"><label>模型</label><input id="SM" value="'+DM+'"></div>'+
+  '<div class="fg"><label>聊天背景图</label><div style="display:flex;gap:8px"><input id="SBG" value="'+(localStorage.getItem('cbg')||'')+'" placeholder="URL或上传" style="flex:1"><button type="button" class="btn" onclick="UP()" style="flex-shrink:0">📁</button></div></div>'+
+  '<button class="btn-p" onclick="SV()">保存</button></div></div>';$('SK').value=''}
+function SV(){var k=$('SK').value.trim();if(k)K=k;var u=$('SU').value.trim();if(u)DU=u;var m=$('SM').value.trim();if(m)DM=m;var bg=$('SBG').value.trim();if(bg)localStorage.setItem('cbg',bg);else localStorage.removeItem('cbg');
+  if(K)API('PUT','/api/config',{apiKey:K,baseUrl:DU,model:DM}).then(function(){T('已保存到服务器')}).catch(function(){T('保存失败')});else T('保存完成')}
+
+document.addEventListener('keydown',function(e){if(e.target&&e.target.id=='IN'&&e.key=='Enter'&&!e.shiftKey){e.preventDefault();SD()}});
+</script>
+</body>
+</html>
