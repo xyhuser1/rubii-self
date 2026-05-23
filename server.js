@@ -264,8 +264,9 @@ app.post('/api/register', (req, res) => {
 
 // ── 登录 ──
 app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  let { username, password } = req.body;
+  if (!username) username = 'admin'; // 兼容旧版只发密码
+  if (!password) return res.status(400).json({ error: '密码不能为空' });
   const users = getUsers();
   const user = users[username];
   if (!user || user.passwordHash !== hashPassword(password)) {
