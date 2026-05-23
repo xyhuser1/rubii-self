@@ -226,7 +226,7 @@ function RR(){var c=$('MS'),e=$('EM');if(!c)return;
   if(!M.length){if(e){c.innerHTML='';c.appendChild(e);e.style.display='block'}return}
   if(e)e.style.display='none';var n='AI',a='',cb='';for(var i=0;i<C.length;i++){if(C[i].id===CID){var ch=C[i];n=ch.name;a=ch.avatar||'';cb=ch.chatBg||'';break}}
   var bg=cb||localStorage.getItem('cbg')||'';
-  if(bg){c.style.backgroundImage='url('+bg+')';c.style.backgroundSize='contain';c.style.backgroundRepeat='no-repeat';c.style.backgroundPosition='center';c.style.backgroundAttachment='fixed'}else{c.style.backgroundImage='';c.style.backgroundRepeat=''}
+  if(bg){if(bg.startsWith('linear-gradient')){c.style.background=bg}else{c.style.backgroundImage='url('+bg+')';c.style.backgroundSize='contain';c.style.backgroundRepeat='no-repeat';c.style.backgroundPosition='center';c.style.backgroundAttachment='fixed'}}else{c.style.backgroundImage='';c.style.backgroundRepeat=''}
   var h='';for(var i=0;i<M.length;i++){var m=M[i],rw='<span class="rw" onclick="BW('+i+')">↩</span>',rw2= m.role!=='user'?'<span class="rw" onclick="RW('+i+')">✏</span>':'';
     if(m.role==='user'){h+='<div class="msg-row u-row"><div class="msg u"><div>'+E(m.content)+'</div></div><div class="uav">👤</div>'+rw+'</div>'}
     else{h+='<div class="msg-row a-row"><div class="aav">'+avt(a,30)+'</div><div class="msg a"><div class="sn">'+E(n)+'</div><div>'+H(m.content)+'</div></div>'+rw+rw2+'</div>'}}
