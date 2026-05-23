@@ -1,7 +1,0 @@
-FROM deepseek-r1:7b
-
-# 提高随机性、降低拒绝概率
-PARAMETER temperature 1.0
-PARAMETER top_p 0.95
-PARAMETER top_k 50
-PARAMETER repeat_penalty 1.1
