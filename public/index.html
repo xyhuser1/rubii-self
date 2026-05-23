@@ -166,7 +166,7 @@ function SH(){
       if(!hasAny)h+='<div class="emp"><h3>暂无历史</h3><p>开始聊天后这里会显示</p></div>';
       $('app').innerHTML=h;
     })
-  }).catch(function(){})
+  }).catch(function(e){T('删除失败')})
 }
 function toggleFav(id){
   T('切换收藏...');
@@ -189,12 +189,11 @@ function renderGrid(l){
 function LH(){API('GET','/api/characters').then(function(l){C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)}).catch(function(){})}
 
 function selectSession(cid,sid){OC(cid);setTimeout(function(){setCurrentSessionId(sid);LC()},100)}
-function delSession(cid,sid){if(!confirm('确定删除？'))return;fetch('/api/characters/'+cid+'/sessions/'+sid,{method:'DELETE',headers:{'x-auth-token':getToken()}}).then(function(r){return r.json()}).then(function(){SH()}).catch(function(){})}
-function getCurrentSessionId(){var k='cs_'+CID;var v=localStorage.getItem(k);return v||'default'}
+function delSession(cid,sid){if(!confirm('确定删除？'))return;API('DELETE','/api/characters/'+cid+'/sessions/'+sid).then(function(){SH()}).catch(function(e){T('删除失败')})}function getCurrentSessionId(){var k='cs_'+CID;var v=localStorage.getItem(k);return v||'default'}
 function setCurrentSessionId(sid){localStorage.setItem('cs_'+CID,sid)}
 function loadSessions(){var ss=[];try{var x=new XMLHttpRequest();x.open('GET','/api/characters/'+CID+'/sessions',false);x.setRequestHeader('x-auth-token',getToken());x.send();if(x.status===200)ss=JSON.parse(x.responseText)}catch(e){}return ss}
 function switchSession(){var sel=$('SS');if(!sel)return;setCurrentSessionId(sel.value);LC()}
-function NS(){API('POST','/api/characters/'+CID+'/sessions',{name:'新会话'+(Math.random()*100|0)}).then(function(s){setCurrentSessionId(s.id);OC(CID)}).catch(function(){T('创建失败')})}
+function NS(){if(!confirm('新建一个空白新会话？之前的会话还在，可以随时切换回来。'))return;API('POST','/api/characters/'+CID+'/sessions',{name:'新会话'+(Math.random()*100|0)}).then(function(s){setCurrentSessionId(s.id);OC(CID)}).catch(function(){T('创建失败')})}
 function deleteSession(sid){if(!confirm('删除该会话？'))return;API('DELETE','/api/characters/'+CID+'/sessions/'+sid).then(function(){if(sid===getCurrentSessionId())setCurrentSessionId('default');OC(CID)}).catch(function(){})}
 function renameSession(){var sid=$('SS')?$('SS').value:null;if(!sid)return;var nn=prompt('会话名:');if(!nn||!nn.trim())return;API('PUT','/api/characters/'+CID+'/sessions/'+sid,{name:nn.trim()}).then(function(){OC(CID)}).catch(function(){T('重命名失败')})}
 
@@ -238,7 +237,7 @@ function SD(){var inp=$('IN');if(!inp)return;var msg=inp.value.trim();if(!msg||S
 function BC(){CID=null;M=[];HOME()}
 function CC(){if(!CID||!confirm('清空对话？'))return;var sid=getCurrentSessionId();API('POST','/api/characters/'+CID+'/chat/clear?sessionId='+sid).then(function(){M=[];RR();T('已清空')}).catch(function(){})}
 function EX(){if(CID){var sid=getCurrentSessionId();window.open('/api/characters/'+CID+'/chat/export?sessionId='+sid,'_blank')}}
-function BW(i){M=M.slice(0,i+1);RR();var sid=getCurrentSessionId();API('POST','/api/characters/'+CID+'/chat/clear?sessionId='+sid).catch(function(){});T('已回溯')}
+function BW(i){M=M.slice(0,i+1);RR();var sid=getCurrentSessionId();API('POST','/api/characters/'+CID+'/chat/rewind?sessionId='+sid+'&index='+i).catch(function(){});T('已回溯')}
 function RW(i){if(i!==undefined)M=M.slice(0,i+1);else if(M[M.length-1].role==="assistant")M.pop();else{T("无法重写");return}RR();var last=M[M.length-1];if(last&&last.role==="user"){$("IN").value=last.content;SD()}else{T("无法重写")}}
 function AD(){if(!CID||M.length<2)return;$('IN').value='[继续] 接着现在的情节继续往后写。';SD()}
 
@@ -250,13 +249,14 @@ function ED(id){var ch=null;if(id)for(var i=0;i<C.length;i++){if(C[i].id===id){c
     '<div class="fg"><label>头像图片</label><div style="display:flex;gap:8px"><input id="EA" value="'+(ch&&ch.avatar&&ch.avatar.indexOf('http')===0?E(ch.avatar):'')+'" placeholder="URL或上传" style="flex:1"><button type="button" class="btn" onclick="UP(\'EA\')" style="flex-shrink:0">📁</button></div></div>'+
     '<div class="fg"><label>角色名 *</label><input id="EN" value="'+(ch?E(ch.name):'')+'" required></div>'+
     '<div class="fg"><label>简介</label><input id="ED2" value="'+(ch?E(ch.description||''):'')+'"></div>'+
+    '<div class="fg"><label>你的身份（让AI知道你是谁）</label><input id="EUP" value="'+(ch?E(ch.userPersona||''):'')+'" placeholder="例如：你是我的贴身秘书"></div>'+
     '<div class="fg"><label>系统提示词</label><textarea id="EP" rows="4">'+(ch?E(ch.systemPrompt||''):'')+'</textarea></div>'+
     '<div class="fg"><label>开场白</label><textarea id="EG" rows="2">'+(ch?E(ch.greeting||''):'')+'</textarea></div>'+'<div class="fg"><label>角色聊天背景</label><div style="display:flex;gap:8px"><input id="ECH" value="'+(ch&&ch.chatBg?E(ch.chatBg):'')+'" placeholder="URL或上传" style="flex:1"><button type="button" class="btn" onclick="UP(\'ECH\')" style="flex-shrink:0">📁</button></div></div>'+
     '<button class="btn-p" type="submit">保存</button>'+(id?'<button type="button" class="btn" style="width:100%;margin-top:8px;padding:12px;border:1px solid #ef4444;color:#ef4444;border-radius:10px;background:transparent" onclick="DL(\''+id+'\')">删除角色</button>':'')+'</form></div>';
   $('EF').onsubmit=function(e){e.preventDefault();
     var av=$('EA').value.trim();
     if(!av){var s=document.querySelector('.ap .s');if(s)av=s.textContent}
-    var data={name:$('EN').value.trim(),avatar:av||'🤖',chatBg:$('ECH').value.trim()||'',description:$('ED2').value.trim(),systemPrompt:$('EP').value.trim(),greeting:$('EG').value.trim()};
+    var data={name:$('EN').value.trim(),avatar:av||'🤖',chatBg:$('ECH').value.trim()||'',description:$('ED2').value.trim(),userPersona:$('EUP').value.trim(),systemPrompt:$('EP').value.trim(),greeting:$('EG').value.trim()};
     if(!data.name){T('请输入角色名');return}
     (id?API('PUT','/api/characters/'+id,data):API('POST','/api/characters',data)).then(function(){T('已保存');HOME()}).catch(function(e){T('保存失败')})}}
 
