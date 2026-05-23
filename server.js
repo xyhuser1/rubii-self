@@ -9,22 +9,44 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const crypto = require('crypto');
 
-// ── 简单密码登录 ──
-const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'rubii123'; // 默认密码，可在环境变量修改
+// ── 用户系统 ──
+const USERS_DIR = path.join(__dirname, 'data', 'users');
+const DATA_DIR = path.join(__dirname, 'data');
+ensureDir(USERS_DIR);
+const USERS_FILE = path.join(USERS_DIR, 'index.json');
 let authTokens = {};
 
-// 清理过期 token（每小时执行一次）
+function getUserDir(username) {
+  return path.join(USERS_DIR, username);
+}
+function ensureUserDir(username) {
+  const dir = getUserDir(username);
+  ensureDir(path.join(dir, 'characters'));
+  ensureDir(path.join(dir, 'chats'));
+  ensureDir(path.join(dir, 'uploads'));
+  return dir;
+}
+function hashPassword(pw) {
+  return crypto.createHash('sha256').update(pw).digest('hex');
+}
+function getUsers() {
+  return readJSON(USERS_FILE) || {};
+}
+function saveUsers(users) {
+  writeJSON(USERS_FILE, users);
+}
+
+// 清理过期 token
 setInterval(() => {
   const now = Date.now();
   for (const [token, data] of Object.entries(authTokens)) {
-    if (now - data.createdAt > 86400000) delete authTokens[token]; // 24小时过期
+    if (now - data.createdAt > 86400000) delete authTokens[token];
   }
 }, 3600000);
 
 // ── 数据目录 ──
-const DATA_DIR = path.join(__dirname, 'data');
-const CHARS_DIR = path.join(DATA_DIR, 'characters');
-const CHATS_DIR = path.join(DATA_DIR, 'chats');
+
+
 
 // ── 工具函数 ──
 function ensureDir(dir) {
@@ -39,13 +61,30 @@ function writeJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8');
 }
 
-// ── 会话管理工具函数 ──
-function sessionDir(charId) {
-  return path.join(CHATS_DIR, charId, 'sessions');
+// 用户数据路径
+function userDir(username) {
+  return path.join(USERS_DIR, username);
+}
+function userCharsDir(username) {
+  return path.join(USERS_DIR, username, 'characters');
+}
+function userChatsDir(username) {
+  return path.join(USERS_DIR, username, 'chats');
+}
+function userUploadsDir(username) {
+  return path.join(USERS_DIR, username, 'uploads');
+}
+function userConfigFile(username) {
+  return path.join(USERS_DIR, username, 'config.json');
 }
 
-function sessionIndex(charId) {
-  return path.join(CHATS_DIR, charId, 'index.json');
+// ── 会话管理工具函数 ──
+function sessionDir(charId, username) {
+  return path.join(userChatsDir(username), charId, 'sessions');
+}
+
+function sessionIndex(charId, username) {
+  return path.join(userChatsDir(username), charId, 'index.json');
 }
 
 function sessionFile(charId, sessionId) {
@@ -56,8 +95,8 @@ function ensureSessionDir(charId) {
   ensureDir(sessionDir(charId));
 }
 
-function readSessions(charId) {
-  const idx = readJSON(sessionIndex(charId));
+function readSessions(charId, username) {
+  const idx = readJSON(sessionIndex(charId, username));
   if (!idx || !idx.sessions) return [];
   return idx.sessions;
 }
@@ -80,7 +119,7 @@ function writeChatData(charId, sessionId, data) {
 
 // ── 迁移旧格式聊天数据 ──
 function migrateOldChat(charId) {
-  const oldFile = path.join(CHATS_DIR, charId + '.json');
+  const oldFile = path.join(userChatsDir(username), charId + '.json');
   if (!fs.existsSync(oldFile)) return false;
   
   try {
@@ -88,7 +127,7 @@ function migrateOldChat(charId) {
     if (!oldData || !oldData.messages) return false;
     
     // 检查是否已有 session 数据
-    const existingSessions = readSessions(charId);
+    const existingSessions = readSessions(charId, username);
     if (existingSessions.length > 0) return false;
     
     // 创建默认 session
@@ -101,7 +140,7 @@ function migrateOldChat(charId) {
     };
     
     writeChatData(charId, defaultSessionId, { messages: oldData.messages });
-    writeSessions(charId, [session]);
+    writeSessions(charId, username, [session]);
     
     // 重命名旧文件备份
     fs.renameSync(oldFile, oldFile + '.bak');
@@ -114,16 +153,18 @@ function migrateOldChat(charId) {
 }
 
 // ── 初始化目录 ──
-ensureDir(CHARS_DIR);
-ensureDir(CHATS_DIR);
 
 // ── 上传图片存储 ──
-const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
-ensureDir(UPLOADS_DIR);
+
+
 
 // Multer 配置（只接受图片）
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  destination: (req, file, cb) => {
+    const dir = path.join(USERS_DIR, req.username || 'admin', 'uploads');
+    ensureDir(dir);
+    cb(null, dir);
+  },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname) || '.jpg';
     cb(null, Date.now() + '-' + Math.random().toString(36).slice(2,8) + ext);
@@ -140,8 +181,10 @@ const upload = multer({
 });
 
 // ── 首次运行：创建示例角色 ──
+ensureUserDir("admin");
+
 (function seedSampleChars() {
-  const files = fs.readdirSync(CHARS_DIR).filter(f => f.endsWith('.json'));
+  const files = fs.readdirSync(userCharsDir("admin")).filter(f => f.endsWith('.json'));
   if (files.length > 0) return; // 已有角色，跳过
 
   const samples = [
@@ -177,7 +220,7 @@ const upload = multer({
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-    writeJSON(path.join(CHARS_DIR, `${char.id}.json`), char);
+    writeJSON(path.join(userCharsDir('admin'), `${char.id}.json`), char);
   }
   console.log(`[种子] 已创建 ${samples.length} 个示例角色`);
 })();
@@ -185,7 +228,7 @@ const upload = multer({
 // ── 迁移旧格式聊天数据 ──
 (function migrateAll() {
   try {
-    const files = fs.readdirSync(CHATS_DIR).filter(f => f.endsWith('.json'));
+    // migrated to user system'));
     for (const f of files) {
       const charId = f.replace('.json', '');
       migrateOldChat(charId);
@@ -203,21 +246,42 @@ app.use((req, res, next) => {
 });
 
 // ── 登录 API ──
+// ── 注册 ──
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  if (username.length < 2) return res.status(400).json({ error: '用户名至少2个字符' });
+  if (password.length < 4) return res.status(400).json({ error: '密码至少4个字符' });
+  const users = getUsers();
+  if (users[username]) return res.status(400).json({ error: '用户名已存在' });
+  users[username] = { passwordHash: hashPassword(password), createdAt: Date.now() };
+  saveUsers(users);
+  ensureUserDir(username);
+  const token = crypto.randomBytes(32).toString('hex');
+  authTokens[token] = { username, createdAt: Date.now() };
+  res.json({ token, username });
+});
+
+// ── 登录 ──
 app.post('/api/login', (req, res) => {
-  const { password } = req.body;
-  if (password === LOGIN_PASSWORD) {
-    const token = crypto.randomBytes(32).toString('hex');
-    authTokens[token] = { createdAt: Date.now() };
-    return res.json({ token });
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  const users = getUsers();
+  const user = users[username];
+  if (!user || user.passwordHash !== hashPassword(password)) {
+    return res.status(401).json({ error: '用户名或密码错误' });
   }
-  res.status(401).json({ error: '密码错误' });
+  const token = crypto.randomBytes(32).toString('hex');
+  authTokens[token] = { username, createdAt: Date.now() };
+  res.json({ token, username });
 });
 
 // ── API 认证中间件 ──
 app.use('/api', (req, res, next) => {
-  if (req.path === '/login' || req.path === '/proxy-image' || req.path === '/upload') return next();
+  if (req.path === '/login' || req.path === '/register' || req.path === '/proxy-image' || req.path === '/upload') return next();
   const token = req.headers['x-auth-token'];
   if (token && authTokens[token]) {
+    req.username = authTokens[token].username;
     authTokens[token].createdAt = Date.now();
     return next();
   }
@@ -243,10 +307,10 @@ app.use(express.static(path.join(__dirname, 'public'), {
 app.get('/api/characters', (req, res) => {
   const chars = [];
   try {
-    const files = fs.readdirSync(CHARS_DIR);
+    const files = fs.readdirSync(userCharsDir(req.username));
     for (const f of files) {
       if (f.endsWith('.json')) {
-        const c = readJSON(path.join(CHARS_DIR, f));
+        const c = readJSON(path.join(userCharsDir(req.username), f));
         if (c) chars.push(c);
       }
     }
@@ -257,7 +321,7 @@ app.get('/api/characters', (req, res) => {
 
 // 获取单个角色
 app.get('/api/characters/:id', (req, res) => {
-  const c = readJSON(path.join(CHARS_DIR, `${req.params.id}.json`));
+  const c = readJSON(path.join(userCharsDir(req.username), `${req.params.id}.json`));
   if (!c) return res.status(404).json({ error: '角色不存在' });
   res.json(c);
 });
@@ -282,13 +346,13 @@ app.post('/api/characters', (req, res) => {
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  writeJSON(path.join(CHARS_DIR, `${char.id}.json`), char);
+  writeJSON(path.join(userCharsDir(req.username), `${char.id}.json`), char);
   res.json(char);
 });
 
 // 更新角色
 app.put('/api/characters/:id', (req, res) => {
-  const file = path.join(CHARS_DIR, `${req.params.id}.json`);
+  const file = path.join(userCharsDir(req.username), `${req.params.id}.json`);
   const existing = readJSON(file);
   if (!existing) return res.status(404).json({ error: '角色不存在' });
 
@@ -312,16 +376,17 @@ app.put('/api/characters/:id', (req, res) => {
 
 // 删除角色
 app.delete('/api/characters/:id', (req, res) => {
-  const file = path.join(CHARS_DIR, `${req.params.id}.json`);
+  const file = path.join(userCharsDir(req.username), `${req.params.id}.json`);
   if (!fs.existsSync(file)) return res.status(404).json({ error: '角色不存在' });
 
   fs.unlinkSync(file);
   // 同时删除聊天记录
-  const charChatDir = path.join(CHATS_DIR, req.params.id);
+  // user-specific
+  const charChatDir = path.join(userChatsDir(req.username), req.params.id);
   if (fs.existsSync(charChatDir)) {
     fs.rmSync(charChatDir, { recursive: true, force: true });
   }
-  const oldChatFile = path.join(CHATS_DIR, `${req.params.id}.json`);
+  const oldChatFile = path.join(userChatsDir(req.username), `${req.params.id}.json`);
   if (fs.existsSync(oldChatFile)) fs.unlinkSync(oldChatFile);
 
   res.json({ success: true });
@@ -348,7 +413,7 @@ app.post('/api/characters/:id/chat/clear', (req, res) => {
 
 // 发送消息 & 获取 AI 回复
 app.post('/api/characters/:id/chat', async (req, res) => {
-  const charFile = path.join(CHARS_DIR, `${req.params.id}.json`);
+  const charFile = path.join(userCharsDir(req.username), `${req.params.id}.json`);
   const char = readJSON(charFile);
   if (!char) return res.status(404).json({ error: '角色不存在' });
 
@@ -367,7 +432,7 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   const sessionId = bodySessionId || 'default';
 
   // 确保 session 存在（自动创建默认会话）
-  let sessions = readSessions(req.params.id);
+  let sessions = readSessions(req.params.id, req.username);
   if (!sessions.find(s => s.id === sessionId)) {
     sessions.push({
       id: sessionId,
@@ -375,7 +440,7 @@ app.post('/api/characters/:id/chat', async (req, res) => {
       createdAt: Date.now(),
       updatedAt: Date.now()
     });
-    writeSessions(req.params.id, sessions);
+    writeSessions(req.params.id, req.username, sessions);
   }
 
   // 读取已有聊天记录
@@ -494,7 +559,7 @@ ${charDesc ? `背景设定：${charDesc}` : ''}
 app.get('/api/characters/:id/chat/export', (req, res) => {
   const sessionId = req.query.sessionId || 'default';
   const data = readChatData(req.params.id, sessionId);
-  const char = readJSON(path.join(CHARS_DIR, `${req.params.id}.json`));
+  const char = readJSON(path.join(userCharsDir(req.username), `${req.params.id}.json`));
   const exportData = {
     character: char || { id: req.params.id, name: '未知角色' },
     sessionId,
@@ -515,7 +580,7 @@ app.get('/api/characters/:id/sessions', (req, res) => {
   const sessions = readSessions(req.params.id);
   // 添加最后一条消息预览
   const enriched = sessions.map(s => {
-    const f = path.join(CHATS_DIR, req.params.id, 'sessions', s.id + '.json');
+    const f = path.join(userChatsDir(req.username), req.params.id, 'sessions', s.id + '.json');
     const data = readJSON(f);
     let lastMsg = '';
     if (data && data.messages) {
@@ -544,7 +609,7 @@ app.post('/api/characters/:id/sessions', (req, res) => {
   };
   const sessions = readSessions(req.params.id);
   sessions.push(session);
-  writeSessions(req.params.id, sessions);
+  writeSessions(req.params.id, req.username, sessions);
   // 创建空的聊天数据文件
   writeChatData(req.params.id, sessionId, { messages: [] });
   res.json(session);
@@ -558,17 +623,17 @@ app.put('/api/characters/:id/sessions/:sid', (req, res) => {
   const { name } = req.body;
   if (name !== undefined) sessions[idx].name = name;
   sessions[idx].updatedAt = Date.now();
-  writeSessions(req.params.id, sessions);
+  writeSessions(req.params.id, req.username, sessions);
   res.json(sessions[idx]);
 });
 
 // 删除 session
 app.delete('/api/characters/:id/sessions/:sid', (req, res) => {
-  let sessions = readSessions(req.params.id);
+  let sessions = readSessions(req.params.id, req.username);
   const idx = sessions.findIndex(s => s.id === req.params.sid);
   if (idx === -1) return res.status(404).json({ error: '会话不存在' });
   sessions.splice(idx, 1);
-  writeSessions(req.params.id, sessions);
+  writeSessions(req.params.id, req.username, sessions);
   // 删除聊天数据文件
   const f = sessionFile(req.params.id, req.params.sid);
   if (fs.existsSync(f)) fs.unlinkSync(f);
@@ -591,14 +656,14 @@ app.get('/api/config', (req, res) => {
 });
 
 app.put('/api/config', (req, res) => {
-  const existing = readJSON(path.join(DATA_DIR, 'config.json')) || {};
+  const existing = readJSON(userConfigFile(req.username)) || {};
   const { apiKey, baseUrl, model, temperature, maxHistory } = req.body;
   if (apiKey !== undefined) existing.apiKey = apiKey;
   if (baseUrl !== undefined) existing.baseUrl = baseUrl;
   if (model !== undefined) existing.model = model;
   if (temperature !== undefined) existing.temperature = temperature;
   if (maxHistory !== undefined) existing.maxHistory = maxHistory;
-  writeJSON(path.join(DATA_DIR, 'config.json'), existing);
+  writeJSON(userConfigFile(req.username), existing);
   res.json({ success: true });
 });
 
@@ -630,7 +695,12 @@ app.post('/api/upload', function(req, res, next) {
 });
 
 // ── 上传文件静态服务 ──
-app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/uploads', (req, res, next) => {
+  // 从token解析用户
+  const token = req.headers['x-auth-token'];
+  const username = (token && authTokens[token]) ? authTokens[token].username : 'admin';
+  express.static(userUploadsDir(username))(req, res, next);
+});
 
 // ── SPA 兜底路由 ──
 app.get('/*', (req, res) => {

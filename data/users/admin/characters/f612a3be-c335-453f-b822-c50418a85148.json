@@ -1,0 +1,14 @@
+{
+  "id": "f612a3be-c335-453f-b822-c50418a85148",
+  "name": "青丘",
+  "avatar": "🤖",
+  "chatBg": "",
+  "fav": false,
+  "description": "",
+  "systemPrompt": "",
+  "greeting": "你好，我是青丘。",
+  "model": "deepseek-chat",
+  "temperature": 0.8,
+  "createdAt": 1779513063940,
+  "updatedAt": 1779513920099
+}
