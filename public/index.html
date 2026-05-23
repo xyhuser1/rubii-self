@@ -131,7 +131,7 @@ function HOME(){
   $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SH()" id="btn-hist">📋</button><button class="btn" onclick="TF()" id="btn-fav">☆</button><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH()
 }
 var _showFav=false;
-function TF(){$('#btn-fav').textContent=_showFav?'☆':'★';_showFav=!_showFav;LH()}
+function TF(){_showFav=!_showFav;$('#btn-fav').textContent=_showFav?'★':'☆';T(_showFav?'只看收藏':'显示全部');LH()}
 function SH(){
   API('GET','/api/characters').then(function(chars){
     var ps=[];
@@ -153,10 +153,11 @@ function SH(){
   }).catch(function(){})
 }
 function toggleFav(id){
+  T('切换收藏...');
   for(var i=0;i<C.length;i++){if(C[i].id===id){C[i].fav=!C[i].fav;break}}
   if(i>=C.length){T('角色未找到');return}
-  // 先本地刷新，再同步服务器
-  var l=C.slice();if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)
+  T(C[i].fav?'⭐ 已收藏':'取消收藏');
+  var l=C.slice();if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l);
   fetch('/api/characters/'+id,{method:'PUT',headers:{'Content-Type':'application/json','x-auth-token':getToken()},body:JSON.stringify({fav:C[i].fav})}).then(function(r){if(r.status==401)showLogin()})
 }
 function renderGrid(l){
