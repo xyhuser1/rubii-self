@@ -1,0 +1,10 @@
+{
+  "sessions": [
+    {
+      "id": "default",
+      "name": "默认会话",
+      "createdAt": 1779549495474,
+      "updatedAt": 1779549495474
+    }
+  ]
+}
