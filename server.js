@@ -805,6 +805,15 @@ app.use('/uploads', (req, res, next) => {
   f = path.join(DATA_DIR, 'uploads', filePath);
   if (fs.existsSync(f)) return res.sendFile(f);
   
+  // 尝试补充文件后缀
+  const exts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  for (const ext of exts) {
+    f = path.join(USERS_DIR, username, 'uploads', filePath + ext);
+    if (fs.existsSync(f)) return res.sendFile(f);
+    f = path.join(DATA_DIR, 'uploads', filePath + ext);
+    if (fs.existsSync(f)) return res.sendFile(f);
+  }
+  
   next();
 });
 
