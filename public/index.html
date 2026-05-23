@@ -128,14 +128,29 @@ function UP(id){
 if(getToken())initApp();else showLogin();
 
 function HOME(){
-  $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH();
+  $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SH()" id="btn-hist">📋</button><button class="btn" onclick="TF()" id="btn-fav">☆</button><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH()
+}
+var _showFav=false;
+function TF(){$('#btn-fav').textContent=_showFav?'☆':'★';_showFav=!_showFav;LH()}
+function SH(){
+  API('GET','/api/characters').then(function(chars){
+    var ps=[];
+    chars.forEach(function(ch){ps.push(API('GET','/api/characters/'+ch.id+'/sessions').then(function(ss){return{ch:ch,sessions:ss}}))});
+    Promise.all(ps).then(function(data){
+      var h='<div class="hdr"><button class="btn" onclick="HOME()">‹</button><h1>历史对话</h1><button class="btn" style="visibility:hidden"> </button></div><div class="main">';
+      var hasAny=false;
+      data.forEach(function(d){if(d.sessions.length){hasAny=true;h+='<div class="name" style="font-size:14px;font-weight:600;color:#e8e0dd;padding:12px 4px 6px">'+E(d.ch.name)+'</div>';d.sessions.forEach(function(s){h+='<div class="card" style="flex-direction:row;padding:10px 14px" onclick="OC(\''+d.ch.id+'\');setTimeout(function(){setCurrentSessionId(\''+s.id+'\');LC()},100)"><div style="flex:1">'+E(s.name)+'</div><div style="color:#9a8f8a;font-size:11px">'+(s.msgCount||'0')+'条</div></div>'})}});
+      if(!hasAny)h+='<div class="emp"><h3>暂无历史</h3><p>开始聊天后这里会显示</p></div>';
+      $('app').innerHTML=h;
+    })
+  }).catch(function(){})
 }
 function toggleFav(id,starEl){
   for(var i=0;i<C.length;i++){if(C[i].id===id){C[i].fav=!C[i].fav;API('PUT','/api/characters/'+id,{fav:C[i].fav});break}}
   LH()
 }
-function LH(){API('GET','/api/characters').then(function(l){l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});C=l;var c=$('HM');
-  if(!l.length){c.innerHTML='<div class="emp"><h3>还没有角色</h3><p>创建角色开始聊天</p><button class="btn-p" onclick="ED()">+ 创建角色</button></div>';return}
+function LH(){API('GET','/api/characters').then(function(l){C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});var c=$('HM');
+  if(!l.length){c.innerHTML=_showFav?'<div class="emp"><h3>还没有收藏</h3><p>点卡片上的星标收藏角色</p></div>':'<div class="emp"><h3>还没有角色</h3><p>创建角色开始聊天</p><button class="btn-p" onclick="ED()">+ 创建角色</button></div>';return}
   var h='<div class="grid">';
   for(var i=0;i<l.length;i++){var ch=l[i];
     var av=ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'">';
@@ -153,11 +168,7 @@ function renameSession(){var sid=$('SS')?$('SS').value:null;if(!sid)return;var n
 
 function OC(id){CID=id;var ch=null;for(var i=0;i<C.length;i++){if(C[i].id===id){ch=C[i];break}}
   var g='';if(ch)g=ch.greeting||'你好，我是'+ch.name;
-  var ss=loadSessions();var curSid=getCurrentSessionId();
-  var sel='<select class="sel-session" id="SS" onchange="switchSession()">';
-  for(var i=0;i<ss.length;i++){sel+='<option value="'+ss[i].id+'"'+(ss[i].id===curSid?' selected':'')+'>'+E(ss[i].name)+'</option>'}
-  sel+='</select>';
-  $('app').innerHTML='<div class="hdr"><button class="btn" onclick="BC()">‹</button>'+sel+'<span style="font-size:12px;color:#9a8f8a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(ch?E(ch.name):'Chat')+'</span><button class="btn" onclick="renameSession()">✏</button><button class="btn" onclick="NS()">+</button><button class="btn" onclick="deleteSession(getCurrentSessionId())">✕</button><button class="btn" onclick="ED(\''+id+'\')">✎</button></div><div class="msgs" id="MS"><div class="emp" id="EM"><h3>开始聊天</h3><p>'+E(g)+'</p></div></div><div class="ar"><button class="btn" onclick="CC()">🗑 清空</button><button class="btn" onclick="AD()">▶ 推进</button><button class="btn" onclick="EX()">📥 导出</button></div><div class="inp"><textarea id="IN" rows="1" placeholder="输入消息..." maxlength="5000"></textarea><button class="sd" id="SB" onclick="SD()">↑</button></div>';LC()}
+  $('app').innerHTML='<div class="hdr"><button class="btn" onclick="BC()">‹</button><h1>'+(ch?E(ch.name):'Chat')+'</h1><button class="btn" onclick="NS()">+</button><button class="btn" onclick="SH()">📋</button><button class="btn" onclick="ED(\''+id+'\')">✎</button></div><div class="msgs" id="MS"><div class="emp" id="EM"><h3>开始聊天</h3><p>'+E(g)+'</p></div></div><div class="ar"><button class="btn" onclick="CC()">🗑 清空</button><button class="btn" onclick="AD()">▶ 推进</button><button class="btn" onclick="EX()">📥 导出</button></div><div class="inp"><textarea id="IN" rows="1" placeholder="输入消息..." maxlength="5000"></textarea><button class="sd" id="SB" onclick="SD()">↑</button></div>';LC()}
 function LC(){var sid=getCurrentSessionId();API('GET','/api/characters/'+CID+'/chat?sessionId='+sid).then(function(msgs){M=msgs;RR()}).catch(function(){})}
 
 function avt(a,s){if(a&&a.indexOf('http')===0)return'<img src="/api/proxy-image?url='+encodeURIComponent(a)+'" style="width:'+s+'px;height:'+s+'px;border-radius:50%;object-fit:cover">';return a||'🤖'}
