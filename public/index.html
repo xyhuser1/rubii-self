@@ -131,7 +131,10 @@ function HOME(){
   $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SH()" id="btn-hist">📋</button><button class="btn" onclick="TF()" id="btn-fav">☆</button><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH()
 }
 var _showFav=false;
-function TF(){_showFav=!_showFav;$('#btn-fav').textContent=_showFav?'★':'☆';T(_showFav?'只看收藏':'显示全部');LH()}
+function TF(){_showFav=!_showFav;$('#btn-fav').textContent=_showFav?'★':'☆';T(_showFav?'只看收藏':'显示全部');
+  // 本地筛选，不用等API
+  var l=C.slice();if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)
+}
 function SH(){
   API('GET','/api/characters').then(function(chars){
     var ps=[];
@@ -145,7 +148,8 @@ function SH(){
         d.sessions.forEach(function(s){
           var av=d.ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'" style="width:40px;height:40px;border-radius:10px;object-fit:cover">';
           var lm=s.lastMsg||'';
-          h+='<div class="card" style="flex-direction:row;padding:10px 12px;align-items:center;gap:12px"><div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:20px" onclick="OC(\''+d.ch.id+'\');setTimeout(function(){setCurrentSessionId(\''+s.id+'\');LC()},100)">'+av+'</div><div style="flex:1;min-width:0;cursor:pointer" onclick="OC(\''+d.ch.id+'\');setTimeout(function(){setCurrentSessionId(\''+s.id+'\');LC()},100)"><div style="font-size:14px;font-weight:600;color:#2a1f1c;margin-bottom:2px">'+E(d.ch.name)+' · '+E(s.name)+'</div><div style="font-size:12px;color:#8a7a75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+E(lm)+'</div></div><div class="btn" onclick="event.stopPropagation();if(confirm(\'确定删除？\')){fetch(\'/api/characters/\'+\''+d.ch.id+'\'+\'/sessions/\'+\''+s.id+'\',{method:\'DELETE\',headers:{\'x-auth-token\':getToken()}}).then(function(r){return r.json()}).then(function(){SH()})}" style="font-size:14px;padding:4px 8px;color:#cc8888;cursor:pointer">✕</div></div>'});
+          var cid2=d.ch.id;var sid2=s.id;var cnm2=E(d.ch.name);var snm2=E(s.name);
+          h+='<div class="card" style="flex-direction:row;padding:10px 12px;align-items:center;gap:12px"><div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:20px" onclick="selectSession(\''+cid2+'\',\''+sid2+'\')">'+av+'</div><div style="flex:1;min-width:0;cursor:pointer" onclick="selectSession(\''+cid2+'\',\''+sid2+'\')"><div style="font-size:14px;font-weight:600;color:#2a1f1c;margin-bottom:2px">'+cnm2+' · '+snm2+'</div><div style="font-size:12px;color:#8a7a75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+E(lm)+'</div></div><div class="btn" onclick="event.stopPropagation();delSession(\''+cid2+'\',\''+sid2+'\')" style="font-size:14px;padding:4px 8px;color:#cc8888;cursor:pointer">✕</div></div>'});
       });
       if(!hasAny)h+='<div class="emp"><h3>暂无历史</h3><p>开始聊天后这里会显示</p></div>';
       $('app').innerHTML=h;
@@ -172,6 +176,8 @@ function renderGrid(l){
 }
 function LH(){API('GET','/api/characters').then(function(l){C=l;if(_showFav)l=l.filter(function(c){return c.fav});l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});renderGrid(l)}).catch(function(){})}
 
+function selectSession(cid,sid){OC(cid);setTimeout(function(){setCurrentSessionId(sid);LC()},100)}
+function delSession(cid,sid){if(!confirm('确定删除？'))return;fetch('/api/characters/'+cid+'/sessions/'+sid,{method:'DELETE',headers:{'x-auth-token':getToken()}}).then(function(r){return r.json()}).then(function(){SH()}).catch(function(){})}
 function getCurrentSessionId(){var k='cs_'+CID;var v=localStorage.getItem(k);return v||'default'}
 function setCurrentSessionId(sid){localStorage.setItem('cs_'+CID,sid)}
 function loadSessions(){var ss=[];try{var x=new XMLHttpRequest();x.open('GET','/api/characters/'+CID+'/sessions',false);x.setRequestHeader('x-auth-token',getToken());x.send();if(x.status===200)ss=JSON.parse(x.responseText)}catch(e){}return ss}
