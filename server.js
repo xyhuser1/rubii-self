@@ -39,6 +39,80 @@ function writeJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8');
 }
 
+// ── 会话管理工具函数 ──
+function sessionDir(charId) {
+  return path.join(CHATS_DIR, charId, 'sessions');
+}
+
+function sessionIndex(charId) {
+  return path.join(CHATS_DIR, charId, 'index.json');
+}
+
+function sessionFile(charId, sessionId) {
+  return path.join(sessionDir(charId), sessionId + '.json');
+}
+
+function ensureSessionDir(charId) {
+  ensureDir(sessionDir(charId));
+}
+
+function readSessions(charId) {
+  const idx = readJSON(sessionIndex(charId));
+  if (!idx || !idx.sessions) return [];
+  return idx.sessions;
+}
+
+function writeSessions(charId, sessions) {
+  ensureSessionDir(charId);
+  writeJSON(sessionIndex(charId), { sessions });
+}
+
+function readChatData(charId, sessionId) {
+  const f = sessionFile(charId, sessionId);
+  const data = readJSON(f);
+  return data || { messages: [] };
+}
+
+function writeChatData(charId, sessionId, data) {
+  ensureSessionDir(charId);
+  writeJSON(sessionFile(charId, sessionId), data);
+}
+
+// ── 迁移旧格式聊天数据 ──
+function migrateOldChat(charId) {
+  const oldFile = path.join(CHATS_DIR, charId + '.json');
+  if (!fs.existsSync(oldFile)) return false;
+  
+  try {
+    const oldData = readJSON(oldFile);
+    if (!oldData || !oldData.messages) return false;
+    
+    // 检查是否已有 session 数据
+    const existingSessions = readSessions(charId);
+    if (existingSessions.length > 0) return false;
+    
+    // 创建默认 session
+    const defaultSessionId = 'default';
+    const session = {
+      id: defaultSessionId,
+      name: '默认会话',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    
+    writeChatData(charId, defaultSessionId, { messages: oldData.messages });
+    writeSessions(charId, [session]);
+    
+    // 重命名旧文件备份
+    fs.renameSync(oldFile, oldFile + '.bak');
+    console.log(`[迁移] ${charId} 聊天数据已迁移到会话格式`);
+    return true;
+  } catch (e) {
+    console.error(`[迁移] ${charId} 迁移失败:`, e.message);
+    return false;
+  }
+}
+
 // ── 初始化目录 ──
 ensureDir(CHARS_DIR);
 ensureDir(CHATS_DIR);
@@ -106,6 +180,17 @@ const upload = multer({
     writeJSON(path.join(CHARS_DIR, `${char.id}.json`), char);
   }
   console.log(`[种子] 已创建 ${samples.length} 个示例角色`);
+})();
+
+// ── 迁移旧格式聊天数据 ──
+(function migrateAll() {
+  try {
+    const files = fs.readdirSync(CHATS_DIR).filter(f => f.endsWith('.json'));
+    for (const f of files) {
+      const charId = f.replace('.json', '');
+      migrateOldChat(charId);
+    }
+  } catch (e) { /* 目录可能不存在 */ }
 })();
 
 // ── 中间件 ──
@@ -187,11 +272,13 @@ app.post('/api/characters', (req, res) => {
     name,
     avatar: avatar || '🤖',
     chatBg: chatBg || '',
+    fav: false,
     description: description || '',
     systemPrompt: systemPrompt || '',
     greeting: greeting || `你好，我是${name}。`,
     model: model || 'deepseek-chat',
     temperature: temperature ?? 0.8,
+    fav: false,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -205,16 +292,18 @@ app.put('/api/characters/:id', (req, res) => {
   const existing = readJSON(file);
   if (!existing) return res.status(404).json({ error: '角色不存在' });
 
-  const { name, avatar, chatBg, description, systemPrompt, greeting, model, temperature } = req.body;
+  const { name, avatar, chatBg, description, systemPrompt, greeting, model, temperature, fav } = req.body;
   Object.assign(existing, {
     ...(name !== undefined && { name }),
     ...(avatar !== undefined && { avatar }),
     ...(chatBg !== undefined && { chatBg }),
+    ...(fav !== undefined && { fav }),
     ...(description !== undefined && { description }),
     ...(systemPrompt !== undefined && { systemPrompt }),
     ...(greeting !== undefined && { greeting }),
     ...(model !== undefined && { model }),
     ...(temperature !== undefined && { temperature }),
+    ...(fav !== undefined && { fav }),
     updatedAt: Date.now()
   });
   writeJSON(file, existing);
@@ -228,8 +317,12 @@ app.delete('/api/characters/:id', (req, res) => {
 
   fs.unlinkSync(file);
   // 同时删除聊天记录
-  const chatFile = path.join(CHATS_DIR, `${req.params.id}.json`);
-  if (fs.existsSync(chatFile)) fs.unlinkSync(chatFile);
+  const charChatDir = path.join(CHATS_DIR, req.params.id);
+  if (fs.existsSync(charChatDir)) {
+    fs.rmSync(charChatDir, { recursive: true, force: true });
+  }
+  const oldChatFile = path.join(CHATS_DIR, `${req.params.id}.json`);
+  if (fs.existsSync(oldChatFile)) fs.unlinkSync(oldChatFile);
 
   res.json({ success: true });
 });
@@ -240,13 +333,15 @@ app.delete('/api/characters/:id', (req, res) => {
 
 // 获取聊天历史
 app.get('/api/characters/:id/chat', (req, res) => {
-  const chat = readJSON(path.join(CHATS_DIR, `${req.params.id}.json`));
-  res.json(chat ? chat.messages : []);
+  const sessionId = req.query.sessionId || 'default';
+  const data = readChatData(req.params.id, sessionId);
+  res.json(data.messages);
 });
 
 // 清空聊天历史
 app.post('/api/characters/:id/chat/clear', (req, res) => {
-  const file = path.join(CHATS_DIR, `${req.params.id}.json`);
+  const sessionId = req.query.sessionId || 'default';
+  const file = sessionFile(req.params.id, sessionId);
   if (fs.existsSync(file)) fs.unlinkSync(file);
   res.json({ success: true });
 });
@@ -257,7 +352,7 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   const char = readJSON(charFile);
   if (!char) return res.status(404).json({ error: '角色不存在' });
 
-  const { message, config } = req.body;
+  const { message, config, sessionId: bodySessionId } = req.body;
   if (!message) return res.status(400).json({ error: '消息不能为空' });
 
   const apiKey = config?.apiKey || '';
@@ -268,9 +363,23 @@ app.post('/api/characters/:id/chat', async (req, res) => {
 
   if (!apiKey) return res.status(400).json({ error: '请先在设置中填写 API Key' });
 
+  // 判断 session
+  const sessionId = bodySessionId || 'default';
+
+  // 确保 session 存在（自动创建默认会话）
+  let sessions = readSessions(req.params.id);
+  if (!sessions.find(s => s.id === sessionId)) {
+    sessions.push({
+      id: sessionId,
+      name: sessionId === 'default' ? '默认会话' : sessionId,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    writeSessions(req.params.id, sessions);
+  }
+
   // 读取已有聊天记录
-  const chatFile = path.join(CHATS_DIR, `${req.params.id}.json`);
-  let chatData = readJSON(chatFile) || { characterId: req.params.id, messages: [] };
+  let chatData = readChatData(req.params.id, sessionId);
 
   // 添加用户消息
   chatData.messages.push({ role: 'user', content: message, timestamp: Date.now() });
@@ -365,7 +474,7 @@ ${charDesc ? `背景设定：${charDesc}` : ''}
 
     // 保存 AI 回复
     chatData.messages.push({ role: 'assistant', content: reply, timestamp: Date.now() });
-    writeJSON(chatFile, chatData);
+    writeChatData(req.params.id, sessionId, chatData);
 
     res.json({ reply, usage: data.usage || null });
 
@@ -383,16 +492,71 @@ ${charDesc ? `背景设定：${charDesc}` : ''}
 
 // 导出聊天记录
 app.get('/api/characters/:id/chat/export', (req, res) => {
-  const chat = readJSON(path.join(CHATS_DIR, `${req.params.id}.json`));
+  const sessionId = req.query.sessionId || 'default';
+  const data = readChatData(req.params.id, sessionId);
   const char = readJSON(path.join(CHARS_DIR, `${req.params.id}.json`));
   const exportData = {
     character: char || { id: req.params.id, name: '未知角色' },
-    messages: chat ? chat.messages : [],
+    sessionId,
+    messages: data.messages,
     exportedAt: new Date().toISOString()
   };
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', `attachment; filename="chat-${req.params.id}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="chat-${req.params.id}-${sessionId}.json"`);
   res.json(exportData);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  API: 会话管理
+// ═══════════════════════════════════════════════════════════
+
+// 获取 session 列表
+app.get('/api/characters/:id/sessions', (req, res) => {
+  const sessions = readSessions(req.params.id);
+  res.json(sessions);
+});
+
+// 创建新 session
+app.post('/api/characters/:id/sessions', (req, res) => {
+  const { name } = req.body;
+  const sessionId = uuidv4();
+  const session = {
+    id: sessionId,
+    name: name || '新会话',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  const sessions = readSessions(req.params.id);
+  sessions.push(session);
+  writeSessions(req.params.id, sessions);
+  // 创建空的聊天数据文件
+  writeChatData(req.params.id, sessionId, { messages: [] });
+  res.json(session);
+});
+
+// 重命名 session
+app.put('/api/characters/:id/sessions/:sid', (req, res) => {
+  const sessions = readSessions(req.params.id);
+  const idx = sessions.findIndex(s => s.id === req.params.sid);
+  if (idx === -1) return res.status(404).json({ error: '会话不存在' });
+  const { name } = req.body;
+  if (name !== undefined) sessions[idx].name = name;
+  sessions[idx].updatedAt = Date.now();
+  writeSessions(req.params.id, sessions);
+  res.json(sessions[idx]);
+});
+
+// 删除 session
+app.delete('/api/characters/:id/sessions/:sid', (req, res) => {
+  let sessions = readSessions(req.params.id);
+  const idx = sessions.findIndex(s => s.id === req.params.sid);
+  if (idx === -1) return res.status(404).json({ error: '会话不存在' });
+  sessions.splice(idx, 1);
+  writeSessions(req.params.id, sessions);
+  // 删除聊天数据文件
+  const f = sessionFile(req.params.id, req.params.sid);
+  if (fs.existsSync(f)) fs.unlinkSync(f);
+  res.json({ success: true });
 });
 
 // ═══════════════════════════════════════════════════════════

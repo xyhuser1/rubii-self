@@ -25,7 +25,7 @@ body{font-family:-apple-system,'PingFang SC','Noto Sans SC',sans-serif;backgroun
 .grid{display:grid;grid-template-columns:1fr;gap:12px;padding-bottom:16px;max-width:380px;margin:0 auto}@media(min-width:450px){.grid{grid-template-columns:1fr 1fr;max-width:400px}}
 .card{display:flex;flex-direction:column;background:#f5f2ee;border:none;border-radius:14px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.2);transition:all .15s}
 .card:active{transform:scale(.96);opacity:.9}
-.card .av{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:42px;flex-shrink:0}
+.card{position:relative}.card .fav-btn{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.25);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;transition:all .12s;color:#ffd43b;line-height:1}.card .fav-btn:active{transform:scale(.85)}.card .fav-btn.off{color:rgba(255,255,255,.5)}.card .av{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#ebe3df;font-size:42px;flex-shrink:0}
 .card .av img{width:100%;height:100%;object-fit:contain;display:block}
 .card .nm{font-size:15px;font-weight:600;color:#2a1f1c;margin-bottom:2px}
 .card .ds{font-size:12px;color:#8a7a75;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -80,6 +80,9 @@ body{font-family:-apple-system,'PingFang SC','Noto Sans SC',sans-serif;backgroun
 .dlg-narr{color:#e8e0dd}
 .dlg-talk{color:#d44a2e;font-weight:600}
 .dlg-think{color:#9a8f8a;font-style:italic}
+/* ── 会话选择器 ── */
+.sel-session{background:rgba(255,255,255,.06);color:#c0b6b2;border:none;border-radius:10px;padding:4px 8px;font-size:11px;cursor:pointer;outline:none;max-width:90px;flex-shrink:0}
+.sel-session option{background:#1e1e26;color:#e8e0dd}
 </style>
 </head>
 <body><div id="app"></div>
@@ -127,18 +130,35 @@ if(getToken())initApp();else showLogin();
 function HOME(){
   $('app').innerHTML='<div class="hdr"><h1>Rubii Self</h1><button class="btn" onclick="SET()">⚙</button></div><div class="main" id="HM"></div>';LH();
 }
-function LH(){API('GET','/api/characters').then(function(l){C=l;var c=$('HM');
+function toggleFav(id,starEl){
+  for(var i=0;i<C.length;i++){if(C[i].id===id){C[i].fav=!C[i].fav;API('PUT','/api/characters/'+id,{fav:C[i].fav});break}}
+  LH()
+}
+function LH(){API('GET','/api/characters').then(function(l){l.sort(function(a,b){return(b.fav?1:0)-(a.fav?1:0)});C=l;var c=$('HM');
   if(!l.length){c.innerHTML='<div class="emp"><h3>还没有角色</h3><p>创建角色开始聊天</p><button class="btn-p" onclick="ED()">+ 创建角色</button></div>';return}
   var h='<div class="grid">';
   for(var i=0;i<l.length;i++){var ch=l[i];
     var av=ch.avatar||'🤖';if(av.indexOf('http')===0)av='<img src="/api/proxy-image?url='+encodeURIComponent(av)+'">';
-    h+='<div class="card" onclick="OC(\''+ch.id+'\')"><div class="av">'+av+'</div><div class="nm" style="padding:6px 12px 0">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div><div class="ac"><button class="btn" onclick="event.stopPropagation();ED(\''+ch.id+'\')">✎</button><button class="btn" onclick="event.stopPropagation();DL(\''+ch.id+'\')">✕</button></div></div>';}
+    var star=ch.fav?'★':'☆';var starCls=ch.fav?'':'off';
+    h+='<div class="card"><button class="fav-btn '+starCls+'" onclick="event.stopPropagation();toggleFav(\''+ch.id+'\',this)">'+star+'</button><div onclick="OC(\''+ch.id+'\')"><div class="av">'+av+'</div><div class="nm" style="padding:6px 12px 0">'+E(ch.name)+'</div><div class="ds">'+E(ch.description||'')+'</div></div><div class="ac"><button class="btn" onclick="event.stopPropagation();ED(\''+ch.id+'\')">✎</button><button class="btn" onclick="event.stopPropagation();DL(\''+ch.id+'\')">✕</button></div></div>';}
   h+='</div><button class="btn-p" onclick="ED()">+ 创建角色</button>';c.innerHTML=h;}).catch(function(){})}
+
+function getCurrentSessionId(){var k='cs_'+CID;var v=localStorage.getItem(k);return v||'default'}
+function setCurrentSessionId(sid){localStorage.setItem('cs_'+CID,sid)}
+function loadSessions(){var ss=[];try{var x=new XMLHttpRequest();x.open('GET','/api/characters/'+CID+'/sessions',false);x.setRequestHeader('x-auth-token',getToken());x.send();if(x.status===200)ss=JSON.parse(x.responseText)}catch(e){}return ss}
+function switchSession(){var sel=$('SS');if(!sel)return;setCurrentSessionId(sel.value);LC()}
+function NS(){API('POST','/api/characters/'+CID+'/sessions',{name:'新会话'+(Math.random()*100|0)}).then(function(s){setCurrentSessionId(s.id);OC(CID)}).catch(function(){T('创建失败')})}
+function deleteSession(sid){if(!confirm('删除该会话？'))return;API('DELETE','/api/characters/'+CID+'/sessions/'+sid).then(function(){if(sid===getCurrentSessionId())setCurrentSessionId('default');OC(CID)}).catch(function(){})}
+function renameSession(){var sid=$('SS')?$('SS').value:null;if(!sid)return;var nn=prompt('会话名:');if(!nn||!nn.trim())return;API('PUT','/api/characters/'+CID+'/sessions/'+sid,{name:nn.trim()}).then(function(){OC(CID)}).catch(function(){T('重命名失败')})}
 
 function OC(id){CID=id;var ch=null;for(var i=0;i<C.length;i++){if(C[i].id===id){ch=C[i];break}}
   var g='';if(ch)g=ch.greeting||'你好，我是'+ch.name;
-  $('app').innerHTML='<div class="hdr"><button class="btn" onclick="BC()">‹</button><h1>'+(ch?E(ch.name):'Chat')+'</h1><button class="btn" onclick="ED(\''+id+'\')">✎</button></div><div class="msgs" id="MS"><div class="emp" id="EM"><h3>开始聊天</h3><p>'+E(g)+'</p></div></div><div class="ar"><button class="btn" onclick="CC()">🗑 清空</button><button class="btn" onclick="AD()">▶ 推进</button><button class="btn" onclick="EX()">📥 导出</button></div><div class="inp"><textarea id="IN" rows="1" placeholder="输入消息..." maxlength="5000"></textarea><button class="sd" id="SB" onclick="SD()">↑</button></div>';LC()}
-function LC(){API('GET','/api/characters/'+CID+'/chat').then(function(msgs){M=msgs;RR()}).catch(function(){})}
+  var ss=loadSessions();var curSid=getCurrentSessionId();
+  var sel='<select class="sel-session" id="SS" onchange="switchSession()">';
+  for(var i=0;i<ss.length;i++){sel+='<option value="'+ss[i].id+'"'+(ss[i].id===curSid?' selected':'')+'>'+E(ss[i].name)+'</option>'}
+  sel+='</select>';
+  $('app').innerHTML='<div class="hdr"><button class="btn" onclick="BC()">‹</button>'+sel+'<span style="font-size:12px;color:#9a8f8a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(ch?E(ch.name):'Chat')+'</span><button class="btn" onclick="renameSession()">✏</button><button class="btn" onclick="NS()">+</button><button class="btn" onclick="deleteSession(getCurrentSessionId())">✕</button><button class="btn" onclick="ED(\''+id+'\')">✎</button></div><div class="msgs" id="MS"><div class="emp" id="EM"><h3>开始聊天</h3><p>'+E(g)+'</p></div></div><div class="ar"><button class="btn" onclick="CC()">🗑 清空</button><button class="btn" onclick="AD()">▶ 推进</button><button class="btn" onclick="EX()">📥 导出</button></div><div class="inp"><textarea id="IN" rows="1" placeholder="输入消息..." maxlength="5000"></textarea><button class="sd" id="SB" onclick="SD()">↑</button></div>';LC()}
+function LC(){var sid=getCurrentSessionId();API('GET','/api/characters/'+CID+'/chat?sessionId='+sid).then(function(msgs){M=msgs;RR()}).catch(function(){})}
 
 function avt(a,s){if(a&&a.indexOf('http')===0)return'<img src="/api/proxy-image?url='+encodeURIComponent(a)+'" style="width:'+s+'px;height:'+s+'px;border-radius:50%;object-fit:cover">';return a||'🤖'}
 
@@ -166,15 +186,16 @@ function RR(){var c=$('MS'),e=$('EM');if(!c)return;
 function SD(){var inp=$('IN');if(!inp)return;var msg=inp.value.trim();if(!msg||S||!CID)return;
   inp.value='';S=true;$('SB').disabled=true;M.push({role:'user',content:msg});RR();
   var te=document.createElement('div');te.className='typing';te.innerHTML='<span></span><span></span><span></span>';$('MS').appendChild(te);
-  API('POST','/api/characters/'+CID+'/chat',{message:msg,config:{apiKey:K||'local',baseUrl:ga(),model:gm(),temperature:1.0,maxHistory:100}}).then(function(r){
+  var sid=getCurrentSessionId();
+  API('POST','/api/characters/'+CID+'/chat',{message:msg,sessionId:sid,config:{apiKey:K||'local',baseUrl:ga(),model:gm(),temperature:1.0,maxHistory:100}}).then(function(r){
     var t2=$('MS').querySelector('.typing');if(t2)t2.remove();
     M.push({role:'assistant',content:r.reply||''});RR();S=false;$('SB').disabled=false
   }).catch(function(e){var t2=$('MS').querySelector('.typing');if(t2)t2.remove();
     M.push({role:'assistant',content:'⚠ '+e.message});RR();S=false;$('SB').disabled=false})}
 function BC(){CID=null;M=[];HOME()}
-function CC(){if(!CID||!confirm('清空对话？'))return;API('POST','/api/characters/'+CID+'/chat/clear').then(function(){M=[];RR();T('已清空')}).catch(function(){})}
-function EX(){if(CID)window.open('/api/characters/'+CID+'/chat/export','_blank')}
-function BW(i){M=M.slice(0,i+1);RR();API('POST','/api/characters/'+CID+'/chat/clear').catch(function(){});T('已回溯')}
+function CC(){if(!CID||!confirm('清空对话？'))return;var sid=getCurrentSessionId();API('POST','/api/characters/'+CID+'/chat/clear?sessionId='+sid).then(function(){M=[];RR();T('已清空')}).catch(function(){})}
+function EX(){if(CID){var sid=getCurrentSessionId();window.open('/api/characters/'+CID+'/chat/export?sessionId='+sid,'_blank')}}
+function BW(i){M=M.slice(0,i+1);RR();var sid=getCurrentSessionId();API('POST','/api/characters/'+CID+'/chat/clear?sessionId='+sid).catch(function(){});T('已回溯')}
 function RW(i){if(i!==undefined)M=M.slice(0,i+1);else if(M[M.length-1].role==="assistant")M.pop();else{T("无法重写");return}RR();var last=M[M.length-1];if(last&&last.role==="user"){$("IN").value=last.content;SD()}else{T("无法重写")}}
 function AD(){if(!CID||M.length<2)return;var last=M[M.length-1];if(last.role==='assistant'){M.pop();$('IN').value='（详细描写以上情景的每一刻）';SD()}else{$('IN').value='（详细描写当前场景）';SD()}}
 
