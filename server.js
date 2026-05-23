@@ -342,8 +342,9 @@ ${charDesc ? `背景设定：${charDesc}` : ''}
       body: JSON.stringify({
         model,
         messages: msgsToSend,
-        temperature,
-        max_tokens: 4096,
+        temperature: Math.min(temperature, 0.95),
+        max_tokens: 8192,
+        top_p: 0.9,
         stream: false
       }),
       signal: controller.signal
