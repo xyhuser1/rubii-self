@@ -534,9 +534,13 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   if (userPersona) {
     personaBlock = `
 【用户人设】
-和你对话的用户的身份设定：${userPersona}
+和你对话的用户也是这部作品中的角色，身份：${userPersona}
 
-重要：用户发的消息是剧情指令或台词，不是角色说的话。你需要根据用户的指令推进剧情，用角色来回应和表演，而不是让角色"成为"用户。
+重要规则：
+- 用户的消息就是角色「${userPersona.replace('我是','')}」说的话或做的动作
+- 回复时让故事中的角色（苏晚晴、林晓月等）与用户角色（${userPersona.replace('我是','')}）互动
+- 不要忽略用户角色的存在，用户是故事的一部分
+- 不能只是两个 NPC 自己对话，要拉着用户角色一起演
 `;
   }
   
