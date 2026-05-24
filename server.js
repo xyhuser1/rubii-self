@@ -14,7 +14,18 @@ const USERS_DIR = path.join(__dirname, 'data', 'users');
 const DATA_DIR = path.join(__dirname, 'data');
 ensureDir(USERS_DIR);
 const USERS_FILE = path.join(USERS_DIR, 'index.json');
+const TOKENS_FILE = path.join(DATA_DIR, 'tokens.json');
 let authTokens = {};
+
+// 从文件加载持久化 token
+function loadTokens() {
+  const saved = readJSON(TOKENS_FILE);
+  if (saved && typeof saved === 'object') authTokens = saved;
+}
+function saveTokens() {
+  writeJSON(TOKENS_FILE, authTokens);
+}
+loadTokens();
 
 function getUserDir(username) {
   return path.join(USERS_DIR, username);
@@ -36,12 +47,14 @@ function saveUsers(users) {
   writeJSON(USERS_FILE, users);
 }
 
-// 清理过期 token
+// 清理过期 token（每小时 + 同步到文件）
 setInterval(() => {
   const now = Date.now();
+  let changed = false;
   for (const [token, data] of Object.entries(authTokens)) {
-    if (now - data.createdAt > 86400000) delete authTokens[token];
+    if (now - data.createdAt > 86400000) { delete authTokens[token]; changed = true; }
   }
+  if (changed) saveTokens();
 }, 3600000);
 
 // ── 数据目录 ──
@@ -243,6 +256,7 @@ app.post('/api/register', (req, res) => {
     if (d.username === username) delete authTokens[t];
   }
   authTokens[token] = { username, createdAt: Date.now() };
+  saveTokens();
   res.json({ token, username });
 });
 
@@ -262,6 +276,7 @@ app.post('/api/login', (req, res) => {
   }
   const token = crypto.randomBytes(32).toString('hex');
   authTokens[token] = { username, createdAt: Date.now() };
+  saveTokens();
   res.json({ token, username });
 });
 
