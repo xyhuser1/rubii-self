@@ -520,18 +520,16 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   // 读取已有聊天记录
   let chatData = readChatData(req.params.id, req.username, sessionId);
 
-  // 添加用户消息（标记为谢辞说的，不让 AI 混淆）
-  const userChar = userPersona ? userPersona.replace('我是', '').trim() : '用户';
-  chatData.messages.push({ role: 'user', content: message, timestamp: Date.now() });
-  
-  // 把用户的原始消息用【userChar】包裹，让 AI 明确知道是谢辞在说话
-  const wrappedMessage = `【${userChar}】${message}`;
-
   // 构建发送给 AI 的消息列表
   const charName = char.name || '角色';
   const charDesc = char.description || '';
   const userPersona = char.userPersona || '';
   const charSystem = char.systemPrompt || `你是${charName}。${charDesc}`;
+  
+  // 添加用户消息
+  chatData.messages.push({ role: 'user', content: message, timestamp: Date.now() });
+
+  // 把用户的原始消息用【谢辞】包裹，让 AI 明确知道是谁在说话
   
   // 构建人设描述
   let personaBlock = '';
