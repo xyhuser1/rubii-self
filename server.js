@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -282,7 +282,7 @@ app.post('/api/login', (req, res) => {
 
 // ── API 认证中间件 ──
 app.use('/api', (req, res, next) => {
-  if (req.path === '/login' || req.path === '/register' || req.path === '/proxy-image' || req.path === '/upload') return next();
+  if (req.path === '/login' || req.path === '/register' || req.path === '/proxy-image' || req.path === '/upload' || req.path === '/diag') return next();
   const token = req.headers['x-auth-token'];
   if (token && authTokens[token]) {
     req.username = authTokens[token].username;
@@ -867,6 +867,46 @@ app.get('/api/debug/logs', (req, res) => {
   res.json(result);
 });
 
+
+// ── 诊断：检查 API Key 和 DeepSeek 连通性 ──
+app.get('/api/diag', async (req, res) => {
+  const { execSync } = require('child_process');
+  const result = { time: new Date().toISOString(), checks: {} };
+  
+  // 1. Check config
+  let cfg = readJSON(userConfigFile(req.username)) || {};
+  if (!cfg.apiKey) {
+    const globalCfg = readJSON(path.join(DATA_DIR, 'config.json')) || {};
+    if (globalCfg.apiKey) cfg = { ...globalCfg, ...cfg };
+  }
+  result.checks.config = { hasApiKey: !!cfg.apiKey, keyLen: (cfg.apiKey || '').length };
+  
+  // 2. Try calling DeepSeek API
+  if (cfg.apiKey) {
+    try {
+      const start = Date.now();
+      const resp = await fetch('https://api.deepseek.com/v1/models', {
+        headers: { 'Authorization': 'Bearer ' + cfg.apiKey }
+      });
+      result.checks.deepseek = { 
+        status: resp.status, 
+        time: Date.now() - start + 'ms'
+      };
+    } catch (e) {
+      result.checks.deepseek = { error: e.message };
+    }
+  }
+  
+  // 3. PM2 status
+  try {
+    result.checks.pm2 = execSync('pm2 show rubii 2>/dev/null | head -20').toString();
+  } catch (e) {}
+  
+  // 4. Token count
+  result.checks.tokens = Object.keys(authTokens).length;
+  
+  res.json(result);
+});
 // ── SPA 兜底路由 ──
 app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
