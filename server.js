@@ -841,6 +841,24 @@ app.use('/uploads', (req, res, next) => {
   next();
 });
 
+// ── 调试：查看 PM2 日志 ──
+app.get('/api/debug/logs', (req, res) => {
+  const logDir = '/root/.pm2/logs';
+  const files = ['rubii-out.log', 'rubii-error.log', 'rubii.log'];
+  const result = {};
+  for (const f of files) {
+    const p = path.join(logDir, f);
+    try {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf-8');
+        const lines = content.split('\n').filter(Boolean);
+        result[f] = lines.slice(-100);
+      }
+    } catch (e) { result[f] = [f + ': ' + e.message]; }
+  }
+  res.json(result);
+});
+
 // ── SPA 兜底路由 ──
 app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
