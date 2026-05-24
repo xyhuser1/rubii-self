@@ -485,12 +485,12 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   const { message, config, sessionId: bodySessionId } = req.body;
   if (!message) return res.status(400).json({ error: '消息不能为空' });
 
-  // 优先用前端传来的 key，没有则回退到服务器配置
+  // 优先用前端传来的 key，无效（空串或'local'等占位符）则回退到服务器配置
   let apiKey = config?.apiKey || '';
-  if (!apiKey) {
+  if (!apiKey || !apiKey.startsWith('sk-')) {
     const userCfg = readJSON(userConfigFile(req.username)) || {};
     apiKey = userCfg.apiKey || '';
-    if (!apiKey) {
+    if (!apiKey || !apiKey.startsWith('sk-')) {
       const globalCfg = readJSON(path.join(DATA_DIR, 'config.json')) || {};
       apiKey = globalCfg.apiKey || '';
     }
