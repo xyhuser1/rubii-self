@@ -520,8 +520,12 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   // 读取已有聊天记录
   let chatData = readChatData(req.params.id, req.username, sessionId);
 
-  // 添加用户消息
+  // 添加用户消息（标记为谢辞说的，不让 AI 混淆）
+  const userChar = userPersona ? userPersona.replace('我是', '').trim() : '用户';
   chatData.messages.push({ role: 'user', content: message, timestamp: Date.now() });
+  
+  // 把用户的原始消息用【userChar】包裹，让 AI 明确知道是谢辞在说话
+  const wrappedMessage = `【${userChar}】${message}`;
 
   // 构建发送给 AI 的消息列表
   const charName = char.name || '角色';
@@ -593,9 +597,10 @@ ${charDesc ? `背景设定：${charDesc}` : ''}${personaBlock}${multiCharBlock}
   // 取最近的 N 条消息
   const recentMsgs = chatData.messages.slice(-maxHistory);
   for (const m of recentMsgs) {
-    // 将用户消息包装为剧情指令
+    // 将用户消息包装为剧情指令（用【谢辞】标记）
     if (m.role === 'user') {
-      msgsToSend.push({ role: 'user', content: m.content });
+      const userChar2 = userPersona ? userPersona.replace('我是', '').trim() : '用户';
+      msgsToSend.push({ role: 'user', content: `【${userChar2}】${m.content}` });
     } else {
       msgsToSend.push({ role: 'assistant', content: m.content });
     }
