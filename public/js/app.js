@@ -141,9 +141,9 @@ function SD(){var inp=$('IN');if(!inp)return;var msg=inp.value.trim();if(!msg||S
   var te=document.createElement('div');te.className='typing';te.innerHTML='<span></span><span></span><span></span>';$('MS').appendChild(te);
   var sid=getCurrentSessionId();
   API('POST','/api/characters/'+CID+'/chat',{message:msg,sessionId:sid,config:{apiKey:K||'local',baseUrl:ga(),model:gm(),temperature:1.0,maxHistory:100}}).then(function(r){
-    var t2=$('MS').querySelector('.typing');if(t2)t2.remove();
+    var t2=($('MS')||document.body).querySelector('.typing');if(t2)t2.remove();
     M.push({role:'assistant',content:r.reply||''});RR();S=false;$('SB').disabled=false
-  }).catch(function(e){var t2=$('MS').querySelector('.typing');if(t2)t2.remove();
+  }).catch(function(e){var t2=($('MS')||document.body).querySelector('.typing');if(t2)t2.remove();
     M.push({role:'assistant',content:'⚠ '+e.message});RR();S=false;$('SB').disabled=false})}
 function BC(){CID=null;M=[];HOME()}
 function CC(){if(!CID||!confirm('清空对话？'))return;var sid=getCurrentSessionId();API('POST','/api/characters/'+CID+'/chat/clear?sessionId='+sid).then(function(){M=[];RR();T('已清空')}).catch(function(){})}
