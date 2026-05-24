@@ -367,7 +367,7 @@ app.post('/api/characters/generate', async (req, res) => {
     const resp = await fetch(apiUrl + '/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey },
-      body: JSON.stringify({ model: config.model || 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 1.0, max_tokens: 4096 })
+      body: JSON.stringify({ model: config.model || 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 1.0, max_tokens: 2048 })
     });
     if (!resp.ok) return res.status(502).json({ error: 'AI生成失败' });
     const data = await resp.json();
@@ -627,7 +627,7 @@ ${charDesc ? `背景设定：${charDesc}` : ''}${personaBlock}${multiCharBlock}
         model,
         messages: msgsToSend,
         temperature: Math.min(temperature, 0.95),
-        max_tokens: 8192,
+        max_tokens: 2048,
         top_p: 0.9,
         stream: false
       }),
