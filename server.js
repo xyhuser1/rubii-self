@@ -485,7 +485,16 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   const { message, config, sessionId: bodySessionId } = req.body;
   if (!message) return res.status(400).json({ error: '消息不能为空' });
 
-  const apiKey = config?.apiKey || '';
+  // 优先用前端传来的 key，没有则回退到服务器配置
+  let apiKey = config?.apiKey || '';
+  if (!apiKey) {
+    const userCfg = readJSON(userConfigFile(req.username)) || {};
+    apiKey = userCfg.apiKey || '';
+    if (!apiKey) {
+      const globalCfg = readJSON(path.join(DATA_DIR, 'config.json')) || {};
+      apiKey = globalCfg.apiKey || '';
+    }
+  }
   const baseUrl = (config?.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, '');
   const model = config?.model || char.model || 'deepseek-chat';
   const temperature = config?.temperature ?? char.temperature ?? 1.1;
