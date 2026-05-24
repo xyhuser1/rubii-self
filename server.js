@@ -12,6 +12,8 @@ const crypto = require('crypto');
 // ── 用户系统 ──
 const USERS_DIR = path.join(__dirname, 'data', 'users');
 const DATA_DIR = path.join(__dirname, 'data');
+const MEMORY_DIR = path.join(DATA_DIR, 'memory');
+ensureDir(MEMORY_DIR);
 ensureDir(USERS_DIR);
 const USERS_FILE = path.join(USERS_DIR, 'index.json');
 const TOKENS_FILE = path.join(DATA_DIR, 'tokens.json');
@@ -529,6 +531,72 @@ app.post('/api/characters/:id/chat', async (req, res) => {
   // 添加用户消息
   chatData.messages.push({ role: 'user', content: message, timestamp: Date.now() });
 
+  // ── 长期记忆系统 ──
+  const MEMORY_FILE = path.join(MEMORY_DIR, `${req.params.id}_${sessionId}.json`);
+  let memoryData = readJSON(MEMORY_FILE) || { summary: '', lastSummaryAt: 0, msgCount: 0 };
+  
+  // 统计上次总结之后的新消息数
+  const newMsgs = chatData.messages.filter(m => m.timestamp > memoryData.lastSummaryAt).length;
+  memoryData.msgCount += newMsgs;
+  
+  // 如果累计超过 30 条新消息，自动生成总结
+  if (memoryData.msgCount >= 30 && !memoryData.summary) {
+    // 首次总结或后续总结
+    try {
+      const summaryMsgs = chatData.messages.slice(-60).map(m => 
+        `${m.role === 'user' ? '谢辞' : 'AI'}: ${m.content.slice(0, 200)}`
+      ).join('\n');
+      
+      const summaryResp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [{
+            role: 'user',
+            content: `请用50字以内总结以下对话的剧情进展：\n${summaryMsgs}`
+          }],
+          max_tokens: 200,
+          temperature: 0.3
+        })
+      });
+      
+      if (summaryResp.ok) {
+        const sd = await summaryResp.json();
+        const newSummary = sd.choices?.[0]?.message?.content || '';
+        if (newSummary) {
+          memoryData.summary = memoryData.summary 
+            ? memoryData.summary + ' → ' + newSummary 
+            : newSummary;
+          // 只保留最近3段总结
+          const parts = memoryData.summary.split(' → ');
+          if (parts.length > 6) memoryData.summary = parts.slice(-6).join(' → ');
+        }
+      }
+    } catch (e) {
+      console.error('[Memory] 总结失败:', e.message);
+    }
+    memoryData.msgCount = 0;
+    memoryData.lastSummaryAt = Date.now();
+    writeJSON(MEMORY_FILE, memoryData);
+  }
+  
+  // 如果消息数少但已有总结，重置计数器（继续累计）
+  if (memoryData.msgCount >= 30 && memoryData.summary) {
+    memoryData.msgCount = 0;
+    memoryData.lastSummaryAt = Date.now();
+    writeJSON(MEMORY_FILE, memoryData);
+  }
+  
+  // 构建记忆块
+  let memoryBlock = '';
+  if (memoryData.summary) {
+    memoryBlock = `
+【剧情回顾】
+${memoryData.summary}
+`;
+  }
+  
   // 把用户的原始消息用【谢辞】包裹，让 AI 明确知道是谁在说话
   
   // 构建人设描述
@@ -573,7 +641,7 @@ ${userPersona}
 
 ${charSystem}
 
-${charDesc ? `背景设定：${charDesc}` : ''}${personaBlock}${multiCharBlock}
+${charDesc ? `背景设定：${charDesc}` : ''}${personaBlock}${multiCharBlock}${memoryBlock}
 【互动方式 — 非常重要】
 这是一个互动式角色扮演，有三个角色：苏晚晴、林晓月、谢辞。
 
